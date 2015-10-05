@@ -9,28 +9,31 @@
 *--------------------------------------------
 * Constant values
 SIZE_PER_PIXEL  equ 3 ; 3 bytes, 0xBGR
-ARG_HEIGHT_OFFSET   equ 64
-ARG_WIDTH_OFFSET    equ ARG_HEIGHT_OFFSET+4
-ARG_TOP_Y_OFFSET    equ ARG_WIDTH_OFFSET+4
-ARG_LEFT_X_OFFSET   equ ARG_TOP_Y_OFFSET+4
-ARG_Y_OFFSET        equ ARG_LEFT_X_OFFSET+4
-ARG_X_OFFSET        equ ARG_Y_OFFSET+4
+ARG_HEIGHT_OFFSET       equ 64
+ARG_WIDTH_OFFSET        equ ARG_HEIGHT_OFFSET+4
+ARG_TOP_Y_OFFSET        equ ARG_WIDTH_OFFSET+4
+ARG_LEFT_X_OFFSET       equ ARG_TOP_Y_OFFSET+4
+ARG_Y_OFFSET            equ ARG_LEFT_X_OFFSET+4
+ARG_X_OFFSET            equ ARG_Y_OFFSET+4
+ARG_IMG_DATA_END_OFFSET equ ARG_X_OFFSET+4
+ARG_IMG_DATA_OFFSET     equ ARG_IMG_DATA_END_OFFSET+4
 *--------------------------------------------
 
 drawImage:
     movem.l ALL_REG,-(sp)
 
     ; Normally, BMP image data is stored upside-down, we start from the last pixel
-    lea    IMG_DATA_END,a0
+    move.l  ARG_IMG_DATA_END_OFFSET(sp),a0
+    move.l  ARG_IMG_DATA_OFFSET(sp),a1
 
     ; Get the width of the image, and convert little endian data to big endian
-    move.l (IMG_DATA+BMP_IMG_WIDTH),d4
+    move.l BMP_IMG_WIDTH(a1),d4
     rol.w  #8,d4
     swap   d4
     rol.w  #8,d4
 
     ; Get the height of the image, and convert little endian data to big endian
-    move.l (IMG_DATA+BMP_IMG_HEIGHT),d5
+    move.l BMP_IMG_HEIGHT(a1),d5
     rol.w  #8,d5
     swap   d5
     rol.w  #8,d5

@@ -20,29 +20,39 @@ HEIGHT                   equ 100
     INCLUDE "draw_image.X68"
     
 START:
+    move.l #BACKGROUND_IMG_DATA,-(sp)
+    move.l #BACKGROUND_IMG_DATA_END,-(sp)
     move.l #START_X,-(sp)                                 ; first instruction of program
     move.l #START_Y,-(sp)
     move.l #LEFT_X_FROM_START_X,-(sp)
     move.l #TOP_Y_FROM_START_Y,-(sp)
-    move.l #WIDTH,-(sp)
-    move.l #HEIGHT,-(sp)
+    move.l #380,-(sp)
+    move.l #285,-(sp)
     jsr    drawImage
-    add    #24,sp
+    add    #32,sp
+    
+    move.l #PLAYER_IMG_DATA,-(sp)
+    move.l #PLAYER_IMG_DATA_END,-(sp)
+    move.l #100,-(sp)
+    move.l #100,-(sp)
+    move.l #LEFT_X_FROM_START_X,-(sp)
+    move.l #TOP_Y_FROM_START_Y,-(sp)
+    move.l #32,-(sp)
+    move.l #32,-(sp)
+    jsr    drawImage
+    add    #32,sp
 
     move.b #9,d0
     trap   #15                                      ; halt simulator
 
 * Variables
-ALIGNMENT       dc.l    1
-IMG_DATA        INCBIN  "t4.bmp"
-IMG_DATA_END    dc.b    1
+ALIGNMENT_BACKGROUND       dc.l    1
+BACKGROUND_IMG_DATA        INCBIN  "t4.bmp"
+BACKGROUND_IMG_DATA_END    dc.b    1
 
-* Constant values
-* NOTE: Since the assembler doesn't allow forward-reference, we put those data here
-BMP_FILE_SIZE   equ (IMG_DATA_END-IMG_DATA)
-*--------------------------------------------  
-    
-
+ALIGNMENT_PLAYER       dc.l    1
+PLAYER_IMG_DATA        INCBIN  "snowboarder.bmp"
+PLAYER_IMG_DATA_END    dc.b    1
 
     END    START        ; last line of source
 

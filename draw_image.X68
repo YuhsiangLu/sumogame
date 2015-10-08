@@ -53,21 +53,23 @@ drawImage:
     move.l d4,d1
     move.l #SIZE_PER_PIXEL,d0
     sub.l  ARG_WIDTH_OFFSET(sp),d1
-    muls   d0,d1
+    mulu   d0,d1
     add.l  d1,d3
 
     ; Adjust the initial address of the pixel
     ; Calcualte how many bytes of skiped rows we need for adjustment
     move.l ARG_TOP_Y_OFFSET(sp),d1                  ; Get the skipped rows
-    muls   d4,d1
+    mulu   d4,d1
     sub.l  ARG_LEFT_X_OFFSET(sp),d4                 ; Get pixels which are on the left of the first row we are going to draw
     sub.l  ARG_WIDTH_OFFSET(sp),d4
     add.l  d1,d4                                    ; Sum of all pixels
-    muls   d0,d4                                    ; Get bytes
+    move.l d4,d0
+    add.l  d0,d4
+    add.l  d0,d4
     sub.l  d4,a0
     ; Calculate how many padding bytes we need for adjustment
     move.l ARG_TOP_Y_OFFSET(sp),d4
-    muls   d2,d4
+    mulu   d2,d4
     sub.l  d4,a0
 
     ; Set the initial pixel to draw x,y to d6,d7
@@ -144,6 +146,7 @@ SET_OUTPUT_RESOLUTION_TRAP_CODE     equ 33
 *--------------------------------------------
 
     
+
 
 
 

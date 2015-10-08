@@ -9,12 +9,15 @@
 * Constant values
 ALL_REG         REG D0-D7/A0-A6 ; Range of REG
 * The rectangle of the particular area we want to draw
-START_X                  equ 0
-START_Y                  equ 0
-LEFT_X_FROM_START_X      equ 0
-TOP_Y_FROM_START_Y       equ 0
-WIDTH                    equ 100
-HEIGHT                   equ 100
+BG_START_X                  equ 0
+BG_START_Y                  equ 0
+BG_IMG_WIDTH             equ 380
+BG_IMG_HEIGHT          equ 285
+
+PLAYER_IMG_WIDTH         equ 32
+PLAYER_IMG_HEIGHT         equ 32
+PLAYER_START_X           equ 200
+PLAYER_START_Y           equ 200
 * Key codes
 KEY_UP_INPUT             equ $26
 * Commands
@@ -26,24 +29,26 @@ GET_USER_INPUT_COMMAND   equ 19
 START:                                              ; first instruction of program
     move.l #BACKGROUND_IMG_DATA,-(sp)
     move.l #BACKGROUND_IMG_DATA_END,-(sp)
-    move.l #START_X,-(sp)
-    move.l #START_Y,-(sp)
-    move.l #LEFT_X_FROM_START_X,-(sp)
-    move.l #TOP_Y_FROM_START_Y,-(sp)
-    move.l #380,-(sp)
-    move.l #285,-(sp)
+    move.l #0,-(sp)
+    move.l #0,-(sp)
+    move.l #0,-(sp)
+    move.l #0,-(sp)
+    move.l #BG_IMG_WIDTH,-(sp)
+    move.l #BG_IMG_HEIGHT,-(sp)
     jsr    drawImage
     add    #32,sp
     
-    move.l #200,d7
+
+    move.l #PLAYER_START_X,d6
+    move.l #PLAYER_START_Y,d7
     move.l #PLAYER_IMG_DATA,-(sp)
     move.l #PLAYER_IMG_DATA_END,-(sp)
-    move.l #200,-(sp)
+    move.l d6,-(sp)
     move.l d7,-(sp)
-    move.l #LEFT_X_FROM_START_X,-(sp)
-    move.l #TOP_Y_FROM_START_Y,-(sp)
-    move.l #32,-(sp)
-    move.l #32,-(sp)
+    move.l #0,-(sp)
+    move.l #0,-(sp)
+    move.l #PLAYER_IMG_WIDTH,-(sp)
+    move.l #PLAYER_IMG_HEIGHT,-(sp)
     jsr    drawImage
     add    #32,sp
     
@@ -55,21 +60,38 @@ gameLoop:
     beq    noInput
     
     move.b HAVE_HAD_NO_INPUT,d0
-    beq    aroundNoInput
+    ;beq    aroundNoInput
     move.b #0,HAVE_HAD_NO_INPUT
     
     move.l #PLAYER_IMG_DATA,-(sp)
     move.l #PLAYER_IMG_DATA_END,-(sp)
-    move.l #200,-(sp)
+    move.l d6,-(sp)
+    move.l d7,d5
     subi.l #1,d7
     move.l d7,-(sp)
-    move.l #LEFT_X_FROM_START_X,-(sp)
-    move.l #TOP_Y_FROM_START_Y,-(sp)
-    move.l #32,-(sp)
-    move.l #32,-(sp)
+    move.l #0,-(sp)
+    move.l #0,-(sp)
+    move.l #PLAYER_IMG_WIDTH,-(sp)
+    move.l #PLAYER_IMG_HEIGHT,-(sp)
     jsr    drawImage
     add    #32,sp
     
+    move.l #BACKGROUND_IMG_DATA,-(sp)
+    move.l #BACKGROUND_IMG_DATA_END,-(sp)
+    move.l #0,-(sp)
+    move.l #0,-(sp)
+    
+    move.l d6,-(sp)
+    move.l d7,d3
+    addi.l #PLAYER_IMG_HEIGHT,d3
+    move.l d3,-(sp)
+    
+    move.l #PLAYER_IMG_WIDTH,-(sp)
+    move.l d5,d3
+    sub.l  d7,d3
+    move.l d3,-(sp)
+    jsr    drawImage
+    add    #32,sp
     
     bra    aroundNoInput
 noInput:
@@ -92,6 +114,7 @@ PLAYER_IMG_DATA_END    dc.b    1
 HAVE_HAD_NO_INPUT      ds.b    1
 
     END    START        ; last line of source
+
 
 
 *~Font name~Courier New~

@@ -139,7 +139,6 @@ update:
     ; Update according to the input
     cmpi.l #0,d2
     ble  doneInputPlayer1
-    ; Ignore input if player is not on the stage
 
     move.l d2,d4
     andi.l #$FF0000,d4
@@ -171,18 +170,18 @@ doneInputPlayer2:
     blt    posiveFrictionForce
     ; Negative friction
     cmpi.l #FRICTION_FORCE,d5
-    bgt    noRepealNegativeFrictionForce
+    bgt    noCancelOutNegativeFrictionForce
     add.l  d5,d4
     bra    aroundFrictionForce
-noRepealNegativeFrictionForce:
+noCancelOutNegativeFrictionForce:
     subi.l #FRICTION_FORCE,d4
     bra    aroundFrictionForce
     ; Postive friction
 posiveFrictionForce:
     cmpi.l #-FRICTION_FORCE,d5
-    blt    noRepealPositiveFrictionForce
+    blt    noCancelOutPositiveFrictionForce
     sub.l  d5,d4
-noRepealPositiveFrictionForce:
+noCancelOutPositiveFrictionForce:
     addi.l #FRICTION_FORCE,d4
    
     ;Update velocity v=v0+a*t

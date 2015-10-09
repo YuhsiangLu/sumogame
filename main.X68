@@ -77,10 +77,10 @@ gameLoop:
     jsr update
     
     ; Rendering
-    ;jsr drawPlayers
+    jsr drawPlayers
     ;jsr drawTimer
     ;jsr drawScore
-    ;jsr swapBuffers
+    jsr swapBuffers
     
     bra gameLoop
 
@@ -157,9 +157,37 @@ doneInputPlayer1:
 doneInputPlayer2:
     ; Physic update
     ; Player1
-    move.l PLAYER1_POS_X,PLAYER1_PREVIOUS_POS_X
-    move.l PLAYER1_POS_Y,PLAYER1_PREVIOUS_POS_Y
     
+    ; Update acceleration f=ma, m=1
+    move.l PLAYER1_FORCE_X,d4
+    move.l PLAYER1_VELOCITY_X,d5
+    beq    aroundFrictionForce
+    blt    posiveFrictionForce
+    ; Negative friction
+    cmpi.l #FRICTION_FORCE,d5
+    bgt    noRepealNegativeFrictionForce
+    add.l  d5,d4
+    bra    aroundFrictionForce
+noRepealNegativeFrictionForce:
+    subi.l #FRICTION_FORCE,d4
+    bra    aroundFrictionForce
+    ; Postive friction
+posiveFrictionForce:
+    cmpi.l #-FRICTION_FORCE,d5
+    blt    noRepealPositiveFrictionForce
+    sub.l  d5,d4
+noRepealPositiveFrictionForce:
+    addi.l #FRICTION_FORCE,d4
+   
+    ;Update velocity v=v0+a*t
+aroundFrictionForce:
+    move.l #0,PLAYER1_FORCE_X
+    add.l  d4,d5
+    move.l d5,PLAYER1_VELOCITY_X
+
+    ; Update position s=s0+v*t
+    asr.l  #8,d5
+    add.l  d5,PLAYER1_POS_X
     rts
     
     ; Drawing function
@@ -168,13 +196,14 @@ doneInputPlayer2:
 ************************************    
 * Draw player's position according to players's position in d6,d7
 drawPlayers:
-    move.l PLAYER1_POS_X,d7
-    cmp.l  PLAYER1_POS_X,d7
+    move.l PLAYER1_POS_X,d6
+    move.l PLAYER1_POS_Y,d7
+    cmp.l  PLAYER1_PREVIOUS_POS_X,d6
     bne    needDrawPlayers
-    cmp.l  d4,d6
+    cmp.l  PLAYER1_PREVIOUS_POS_Y,d7
     beq    noDrawPlayers
 needDrawPlayers:
-    jsr    invalPlayer1
+    ;jsr    invalPlayer1
     move.l #PLAYER1_IMG_DATA,-(sp)
     move.l #PLAYER1_IMG_DATA_END,-(sp)
     move.l d6,-(sp)
@@ -207,6 +236,8 @@ invalPlayer1:
     move.l d3,-(sp)
     jsr    drawImage
     add    #32,sp
+    move.l PLAYER1_POS_X,PLAYER1_PREVIOUS_POS_X
+    move.l PLAYER1_POS_Y,PLAYER1_PREVIOUS_POS_Y
     rts
 
 ************************************

@@ -9,10 +9,9 @@
 * Constant values
 ALL_REG         REG D0-D7/A0-A6 ; Range of REG
 * Game parameters
-STAGE_WIDTH                 equ 744
-STAGE_HEIGHT                equ 100
+
 JUMP_FORCE                  equ 20
-PUSH_FORCE                  equ 5
+PUSH_FORCE                  equ 100
 FRICTION_FORCE              equ 2
 GRAVITY_FORCE               equ 10
 * Background image
@@ -23,9 +22,15 @@ BG_IMG_HEIGHT               equ 536
 * Player image
 PLAYER_IMG_WIDTH            equ 64
 PLAYER_IMG_HEIGHT           equ 64
-PLAYER1_START_X             equ (BG_IMG_WIDTH/2-STAGE_WIDTH/2)+10
+* Stage
+STAGE_WIDTH                 equ 744
+STAGE_HEIGHT                equ 100
+STAGE_X_BEGIN               equ (BG_IMG_WIDTH/2-STAGE_WIDTH/2)
+STAGE_X_END                 equ (BG_IMG_WIDTH/2+STAGE_WIDTH/2)
+* Player
+PLAYER1_START_X             equ STAGE_X_BEGIN+10
 PLAYER1_START_Y             equ BG_IMG_HEIGHT-STAGE_HEIGHT-PLAYER_IMG_HEIGHT
-PLAYER2_START_X             equ (BG_IMG_WIDTH/2+STAGE_WIDTH/2)-10-PLAYER_IMG_WIDTH
+PLAYER2_START_X             equ STAGE_X_END-10-PLAYER_IMG_WIDTH
 PLAYER2_START_Y             equ PLAYER1_START_Y
 * Key codes
 KEY_UP_INPUT                equ $26
@@ -97,6 +102,8 @@ swapBuffers
 ************************************
 * Get keyboard input and stores in d2,d3
 getInput:
+    clr.l  d2
+    clr.l  d3
     move.l #KEY_W_INPUT<<16+KEY_A_INPUT<<8+KEY_D_INPUT,d1
     move.b #GET_USER_INPUT_TRAP_CODE,d0
     TRAP   #15
@@ -121,8 +128,6 @@ haveInput:
     
     bra aroundNoInput
 noInput:
-    move.l #0,d2
-    move.l #0,d3
     move.b #1,HAVE_HAD_NO_INPUT
 aroundNoInput:
     rts
@@ -134,6 +139,7 @@ update:
     ; Update according to the input
     cmpi.l #0,d2
     ble  doneInputPlayer1
+    ; Ignore input if player is not on the stage
 
     move.l d2,d4
     andi.l #$FF0000,d4
@@ -156,8 +162,8 @@ doneInputPlayer1:
     move.l d3,d4
 doneInputPlayer2:
     ; Physic update
-    ; Player1
     
+    ; Player1
     ; Update acceleration f=ma, m=1
     move.l PLAYER1_FORCE_X,d4
     move.l PLAYER1_VELOCITY_X,d5
@@ -188,6 +194,9 @@ aroundFrictionForce:
     ; Update position s=s0+v*t
     asr.l  #8,d5
     add.l  d5,PLAYER1_POS_X
+    
+    
+    
     rts
     
     ; Drawing function
@@ -283,6 +292,7 @@ PLAYER2_IMG_DATA           INCBIN  "sumo2.bmp"
 PLAYER2_IMG_DATA_END       ds.b    1
 
 HAVE_HAD_NO_INPUT          dc.b    1
+WINNER                     dc.b    0
 
 ALIGNMENT_PLAYER_DATA      ds.l    1
 PLAYER1_POS_X              dc.l    PLAYER1_START_X

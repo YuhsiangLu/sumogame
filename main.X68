@@ -41,8 +41,10 @@ DOUBLE_BUFFERED_MODE        equ 17
 REPAINT_TRAP_CODE           equ 94
 SET_RESOLUTION_TRAP_CODE    equ 33
 *--------------------------------------------
- 
-START:                                              ; first instruction of program
+
+************************************
+* First instruction of program
+START:
     ; Set double buffered mode
     move.b #DRAWING_MODE_TRAP_CODE,d0
     move.b #DOUBLE_BUFFERED_MODE,d1
@@ -84,26 +86,48 @@ gameLoop:
 
     move.b #9,d0
     trap   #15                                      ; halt simulator
-
+    
+************************************
 * Swap the drawing buffers
 swapBuffers
     move.b #REPAINT_TRAP_CODE,d0
     trap   #15
     rts
-
+    
+************************************
 * Get keyboard input and stores in d2,d3
 getInput:
-    move.l #KEY_UP_INPUT<<16+KEY_LEFT_INPUT<<8+KEY_RIGHT_INPUT,d1
-    move.b #GET_USER_INPUT_TRAP_CODE,d0
-    TRAP   #15
-    move.l d1,d3
-    
     move.l #KEY_W_INPUT<<16+KEY_A_INPUT<<8+KEY_D_INPUT,d1
     move.b #GET_USER_INPUT_TRAP_CODE,d0
     TRAP   #15
-    move.l d1,d2
+    move.l d1,d4
+    
+    move.l #KEY_UP_INPUT<<16+KEY_LEFT_INPUT<<8+KEY_RIGHT_INPUT,d1
+    move.b #GET_USER_INPUT_TRAP_CODE,d0
+    TRAP   #15
+    move.l d1,d5
+    
+    cmpi   #0,d4
+    bne    haveInput
+    cmpi   #0,d5
+    beq    noInput
+haveInput:
+    move.b  HAVE_HAD_NO_INPUT,d0
+    beq     aroundNoInput
+    move.b  #0,HAVE_HAD_NO_INPUT
+    
+    move.l d4,d2
+    move.l d5,d3
+    
+    bra aroundNoInput
+noInput:
+    move.l #0,d2
+    move.l #0,d3
+    move.b #1,HAVE_HAD_NO_INPUT
+aroundNoInput:
     rts
 
+************************************
 * Update the objects in game according to the input from keyboard or the physic of the game world.
 * The update routine assumes the states of input will be store in d2,d3
 update:
@@ -115,12 +139,12 @@ update:
     andi.l #$FF0000,d4
     beq    noP1Up
     subi.l #JUMP_FORCE,PLAYER1_FORCE_Y
-noP1Up
+noP1Up:
     move.l d2,d4
     andi.l #$FF00,d4
     beq    noP1Left
     subi.l #PUSH_FORCE,PLAYER1_FORCE_X
-noP1Left
+noP1Left:
     move.l d2,d4
     andi.l #$FF,d4
     beq    doneInputPlayer1
@@ -132,14 +156,16 @@ doneInputPlayer1:
     move.l d3,d4
 doneInputPlayer2:
     ; Physic update
-    ; Store the old position
+    ; Player1
     move.l PLAYER1_POS_X,PLAYER1_PREVIOUS_POS_X
     move.l PLAYER1_POS_Y,PLAYER1_PREVIOUS_POS_Y
+    
     rts
     
     ; Drawing function
     INCLUDE "draw_image.X68"
     
+************************************    
 * Draw player's position according to players's position in d6,d7
 drawPlayers:
     move.l PLAYER1_POS_X,d7
@@ -162,6 +188,8 @@ needDrawPlayers:
 noDrawPlayers:
     rts
     
+************************************
+* Repaint invalid rectangle of the background for player1
 invalPlayer1:
     move.l #BACKGROUND_IMG_DATA,-(sp)
     move.l #BACKGROUND_IMG_DATA_END,-(sp)
@@ -180,7 +208,9 @@ invalPlayer1:
     jsr    drawImage
     add    #32,sp
     rts
-    
+
+************************************
+* Repaint invalid rectangle of the background for player2    
 invalPlayer2:
     move.l #BACKGROUND_IMG_DATA,-(sp)
     move.l #BACKGROUND_IMG_DATA_END,-(sp)
@@ -200,8 +230,11 @@ invalPlayer2:
     add    #32,sp
     rts
 
+************************************
 drawTimer
     rts
+    
+************************************
 drawScore
     rts
 
@@ -217,6 +250,8 @@ PLAYER1_IMG_DATA_END       ds.b    1
 ALIGNMENT_PLAYER2          ds.l    1
 PLAYER2_IMG_DATA           INCBIN  "sumo2.bmp"
 PLAYER2_IMG_DATA_END       ds.b    1
+
+HAVE_HAD_NO_INPUT          dc.b    1
 
 ALIGNMENT_PLAYER_DATA      ds.l    1
 PLAYER1_POS_X              dc.l    PLAYER1_START_X

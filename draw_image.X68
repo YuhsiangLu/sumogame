@@ -2,11 +2,10 @@
 * Title      : BMP Painter
 * Written by : Yu-Hsiang Lu
 * Date       : 09/26/2015
-* Description: This is a 68K program which loads (INCBIN in assembly time) a 24-bit uncompressed BMP image and draws it on the screen.
+* Description: This is a 68K subroutine which loads (INCBIN in assembly time) a 24-bit uncompressed BMP image and draws it on the screen.
 *              The program is able to draw a particualr area of the image by specify x, y offset, width, and height of the rectangle of the area.
 *-----------------------------------------------------------
 
-*--------------------------------------------
 * Constant values
 SIZE_PER_PIXEL  equ 3 ; 3 bytes, 0xBGR
 ARG_HEIGHT_OFFSET       equ 64
@@ -17,7 +16,19 @@ ARG_Y_OFFSET            equ ARG_LEFT_X_OFFSET+4
 ARG_X_OFFSET            equ ARG_Y_OFFSET+4
 ARG_IMG_DATA_END_OFFSET equ ARG_X_OFFSET+4
 ARG_IMG_DATA_OFFSET     equ ARG_IMG_DATA_END_OFFSET+4
-*--------------------------------------------
+* 68k Graphic commands
+DRAW_PIXEL_TRAP_CODE                equ 82
+PEN_COLOR_TRAP_CODE                 equ 80
+SET_OUTPUT_RESOLUTION_TRAP_CODE     equ 33
+* Simple BMP header structure offset
+BMP_IDENTIFIER_OFFSET   equ $00
+BMP_SIZE_OFFSET         equ $02
+BMP_RESERVED_OFFET      equ $06
+BMP_IMG_DATA_OFFSET     equ $0A
+BMP_HEADER_SIZE_OFFSET  equ $0E
+BMP_IMG_WIDTH           equ $12
+BMP_IMG_HEIGHT          equ $16
+* NOTE: The program assumes it's a 24-bit uncompressed BMP image, so it ignores the rest of the header here
 
 drawImage:
     movem.l ALL_REG,-(sp)
@@ -128,24 +139,8 @@ ENDIF:
     movem.l (sp)+,ALL_REG
     rts
 
-*--------------------------------------------
-* Simple BMP header structure offset
-BMP_IDENTIFIER_OFFSET   equ $00
-BMP_SIZE_OFFSET         equ $02
-BMP_RESERVED_OFFET      equ $06
-BMP_IMG_DATA_OFFSET     equ $0A
-BMP_HEADER_SIZE_OFFSET  equ $0E
-BMP_IMG_WIDTH           equ $12
-BMP_IMG_HEIGHT          equ $16
-* NOTE: The program assumes it's a 24-bit uncompressed BMP image, so it ignores the rest of the header here
-*--------------------------------------------
-* 68k Graphic commands
-DRAW_PIXEL_TRAP_CODE                equ 82
-PEN_COLOR_TRAP_CODE                 equ 80
-SET_OUTPUT_RESOLUTION_TRAP_CODE     equ 33
-*--------------------------------------------
-
     
+
 
 
 

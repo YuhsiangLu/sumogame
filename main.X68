@@ -14,19 +14,27 @@ BG_START_Y                  equ 0
 BG_IMG_WIDTH                equ 380
 BG_IMG_HEIGHT               equ 285
 
-PLAYER_IMG_WIDTH         equ 32
-PLAYER_IMG_HEIGHT        equ 32
-PLAYER_START_X           equ 200
-PLAYER_START_Y           equ 200
+PLAYER_IMG_WIDTH            equ 32
+PLAYER_IMG_HEIGHT           equ 32
+PLAYER_START_X              equ 200
+PLAYER_START_Y              equ 200
 * Key codes
-KEY_UP_INPUT             equ $26
-* Commands
-GET_USER_INPUT_COMMAND   equ 19
+KEY_UP_INPUT                equ $26
+* Commands and Command parameters
+GET_USER_INPUT_TRAP_CODE    equ 19
+DRAWING_MODE_TRAP_CODE      equ 92
+DOUBLE_BUFFERED_MODE        equ 17
+REPAINT_TRAP_CODE           equ 94
 *--------------------------------------------
 
     INCLUDE "draw_image.X68"
     
 START:                                              ; first instruction of program
+    ; Set double buffered mode
+    move.b #DRAWING_MODE_TRAP_CODE,d0
+    move.b #DOUBLE_BUFFERED_MODE,d1
+    trap   #15
+
     ; Initialize background
     move.l #BACKGROUND_IMG_DATA,-(sp)
     move.l #BACKGROUND_IMG_DATA_END,-(sp)
@@ -39,6 +47,8 @@ START:                                              ; first instruction of progr
     jsr    drawImage
     add    #32,sp
     
+    jsr    swapBuffers
+    
     ; Initialize player's position
     move.l #PLAYER_START_X,d6
     move.l #PLAYER_START_Y,d7
@@ -46,18 +56,30 @@ START:                                              ; first instruction of progr
     move.l #PLAYER_START_Y,d5
     
 gameLoop:
+    ; Get input commands
     jsr getInput
+    
+    ; Update objects
     jsr update
+    
+    ; Rendering
     jsr drawingPlayer
+    jsr swapBuffers
+    
     bra gameLoop
 
     move.b #9,d0
     trap   #15                                      ; halt simulator
+    
+swapBuffers
+    move.b #REPAINT_TRAP_CODE,d0
+    trap   #15
+    rts
 
 * Get keyboard input and translate the key code into commands and stores in d3
 getInput:
     move.l #KEY_UP_INPUT,d1
-    move.b #GET_USER_INPUT_COMMAND,d0
+    move.b #GET_USER_INPUT_TRAP_CODE,d0
     TRAP   #15
     andi.l #$FF,d1
     move.l d1,d3

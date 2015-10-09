@@ -107,9 +107,9 @@ getInput:
     TRAP   #15
     move.l d1,d5
     
-    cmpi   #0,d4
+    cmpi.l #0,d4
     bne    haveInput
-    cmpi   #0,d5
+    cmpi.l #0,d5
     beq    noInput
 haveInput:
     move.b  HAVE_HAD_NO_INPUT,d0
@@ -276,6 +276,7 @@ PLAYER2_FORCE_X            dc.l    0
 PLAYER2_FORCE_Y            dc.l    0
 
     END    START        ; last line of source
+
 
 
 

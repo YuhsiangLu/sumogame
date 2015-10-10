@@ -8,12 +8,13 @@
     
 * Constant values
 ALL_REG         REG D0-D7/A0-A6 ; Range of REG
+TRANSPARENT_COLOR_GREEN        equ $0000FF00
 NUMBER_BITS_OF_FRACTIONAL_PART equ 8
 ADD_FOR_ROUND                  equ 1<<(NUMBER_BITS_OF_FRACTIONAL_PART-1)  ; For negative fix point number truncate
 * Game parameters
 
-PUSH_FORCE                  equ 200
-FRICTION_FORCE              equ 10
+PUSH_FORCE                  equ 500
+FRICTION_FORCE              equ 50
 GRAVITY_FORCE               equ 10
 * Background image
 BG_START_X                  equ 0
@@ -70,8 +71,9 @@ START:
     move.l #0,-(sp)
     move.l #BG_IMG_WIDTH,-(sp)
     move.l #BG_IMG_HEIGHT,-(sp)
+    move.l #0,-(sp)
     jsr    drawImage
-    add    #32,sp
+    add    #36,sp
     
     ; First draw
     jsr    drawPlayers
@@ -338,8 +340,9 @@ needDrawPlayer1:
     move.l #0,-(sp)
     move.l #PLAYER_IMG_WIDTH,-(sp)
     move.l #PLAYER_IMG_HEIGHT,-(sp)
+    move.l #TRANSPARENT_COLOR_GREEN,-(sp)
     jsr    drawImage
-    add    #32,sp
+    add    #36,sp
 noDrawPlayer1:
     move.l PLAYER2_POS_X,d6
     move.l PLAYER2_POS_Y,d7
@@ -367,8 +370,9 @@ needDrawPlayer2:
     move.l #0,-(sp)
     move.l #PLAYER_IMG_WIDTH,-(sp)
     move.l #PLAYER_IMG_HEIGHT,-(sp)
+    move.l #TRANSPARENT_COLOR_GREEN,-(sp)
     jsr    drawImage
-    add    #32,sp
+    add    #36,sp
 noDrawPlayer2:
     rts
     
@@ -397,8 +401,9 @@ putArgs:
     move.l d7,-(sp)
     move.l d4,-(sp)
     move.l #PLAYER_IMG_HEIGHT,-(sp)
+    move.l #0,-(sp)
     jsr    drawImage
-    add    #32,sp
+    add    #36,sp
     move.l PLAYER1_POS_X,PLAYER1_PREVIOUS_POS_X
     rts
 

@@ -8,7 +8,8 @@
 
 * Constant values
 SIZE_PER_PIXEL  equ 3 ; 3 bytes, 0xBGR
-ARG_HEIGHT_OFFSET       equ 64
+ARG_TRASPARENT_COLOR_OFFSET       equ 64 ; Set 0x0 means not transparent
+ARG_HEIGHT_OFFSET       equ ARG_TRASPARENT_COLOR_OFFSET+4
 ARG_WIDTH_OFFSET        equ ARG_HEIGHT_OFFSET+4
 ARG_TOP_Y_OFFSET        equ ARG_WIDTH_OFFSET+4
 ARG_LEFT_X_OFFSET       equ ARG_TOP_Y_OFFSET+4
@@ -112,17 +113,24 @@ ALIGNED:
     lsr.l  #8,d1                                    ; Shift out the last significant byte of next pixel then we could get 3 bytes color data
 ENDIF:
     ; Set the pen color according to d1
+    ; Check transparent color
+    move.l  ARG_TRASPARENT_COLOR_OFFSET(sp),d0
+    cmp.l  #0,d0
+    beq    noTransparentColor
+    cmp.l  d1,d0
+    beq    skipDraw
+noTransparentColor:
     move.l #PEN_COLOR_TRAP_CODE,d0
     trap   #15
 
     ; Copy the x and y to defined registers abd draw it
     move.l d6,d1
-    add.l ARG_X_OFFSET(sp),d1
+    add.l  ARG_X_OFFSET(sp),d1
     move.l d7,d2
     add.l  ARG_Y_OFFSET(sp),d2
     move.l #DRAW_PIXEL_TRAP_CODE,d0
     trap   #15
-
+skipDraw:
     ; Check if the row is finished
     subi.l #1,d6
     cmp.l  d4,d6

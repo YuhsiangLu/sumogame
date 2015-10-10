@@ -8,10 +8,12 @@
     
 * Constant values
 ALL_REG         REG D0-D7/A0-A6 ; Range of REG
+NUMBER_BITS_OF_FRACTIONAL_PART equ 8
+ADD_FOR_ROUND                  equ 1<<(NUMBER_BITS_OF_FRACTIONAL_PART-1)  ; For negative fix point number truncate
 * Game parameters
 
 PUSH_FORCE                  equ 100
-FRICTION_FORCE              equ 2
+FRICTION_FORCE              equ 1
 GRAVITY_FORCE               equ 10
 * Background image
 BG_START_X                  equ 0
@@ -27,9 +29,9 @@ STAGE_HEIGHT                equ 100
 STAGE_X_BEGIN               equ (BG_IMG_WIDTH/2-STAGE_WIDTH/2)
 STAGE_X_END                 equ (BG_IMG_WIDTH/2+STAGE_WIDTH/2)
 * Player
-PLAYER1_START_X             equ STAGE_X_BEGIN+10
-PLAYER1_START_Y             equ BG_IMG_HEIGHT-STAGE_HEIGHT-PLAYER_IMG_HEIGHT
-PLAYER2_START_X             equ STAGE_X_END-10-PLAYER_IMG_WIDTH
+PLAYER1_START_X             equ (STAGE_X_BEGIN+10)<<NUMBER_BITS_OF_FRACTIONAL_PART
+PLAYER1_START_Y             equ (BG_IMG_HEIGHT-STAGE_HEIGHT-PLAYER_IMG_HEIGHT)<<NUMBER_BITS_OF_FRACTIONAL_PART
+PLAYER2_START_X             equ (STAGE_X_END-10-PLAYER_IMG_WIDTH)<<NUMBER_BITS_OF_FRACTIONAL_PART
 PLAYER2_START_Y             equ PLAYER1_START_Y
 * Key codes
 KEY_LEFT_INPUT              equ $25
@@ -69,6 +71,8 @@ START:
     jsr    drawImage
     add    #32,sp
     
+    ; First draw
+    jsr    drawPlayers
     jsr    swapBuffers
     
 gameLoop:
@@ -168,23 +172,24 @@ doneInputPlayer2:
     lea PLAYER1_FORCE_X,a0
     lea PLAYER1_VELOCITY_X,a1
     lea PLAYER1_POS_X,a2
+    lea PLAYER1_PREVIOUS_POS_X,a3
     jsr updatePlayer
     
     lea PLAYER2_FORCE_X,a0
     lea PLAYER2_VELOCITY_X,a1
     lea PLAYER2_POS_X,a2
+    lea PLAYER2_PREVIOUS_POS_X,a3
     jsr updatePlayer
     
     rts
     
 ************************************
 * Update player
-* INPUT: Put the address of player's force, velocity, and position to a0, a1, a2
+* INPUT: Put the address of player's force, velocity, current position and previous position to a0, a1, a2, a3
 
 updatePlayer
-    movem.l ALL_REG,-(sp)
-
     ; Update acceleration f=ma, m=1
+    move.l (a2),(a3)
     move.l (a0),d4
     move.l (a1),d5
     beq    aroundFrictionForce
@@ -192,7 +197,7 @@ updatePlayer
     ; Negative friction
     cmpi.l #FRICTION_FORCE,d5
     bgt    noCancelOutNegativeFrictionForce
-    add.l  d5,d4
+    sub.l  d5,d4
     bra    aroundFrictionForce
 noCancelOutNegativeFrictionForce:
     subi.l #FRICTION_FORCE,d4
@@ -202,6 +207,7 @@ posiveFrictionForce:
     cmpi.l #-FRICTION_FORCE,d5
     blt    noCancelOutPositiveFrictionForce
     sub.l  d5,d4
+    bra    aroundFrictionForce
 noCancelOutPositiveFrictionForce:
     addi.l #FRICTION_FORCE,d4
    
@@ -212,24 +218,42 @@ aroundFrictionForce:
     move.l d5,(a1)
 
     ; Update position s=s0+v*t
-    asr.l  #8,d5
     add.l  d5,(a2)
-    
-    movem.l (sp)+,ALL_REG
     rts
 ************************************      
 * Drawing function
     INCLUDE "draw_image.X68"
+    
+************************************
+* Round Fix point
+* INPUT: fix point number in d0
+* OUT: roundted integer in d0
+roundDown:
+    add.l  #ADD_FOR_ROUND,d0
+    asr.l  #NUMBER_BITS_OF_FRACTIONAL_PART,d0
+    rts
     
 ************************************    
 * Draw player image
 drawPlayers:
     move.l PLAYER1_POS_X,d6
     move.l PLAYER1_POS_Y,d7
-    cmp.l  PLAYER1_PREVIOUS_POS_X,d6
+    move.l PLAYER1_PREVIOUS_POS_X,d5
+    
+    move.l d6,d0
+    jsr    roundDown
+    move.l d0,d6
+    move.l d7,d0
+    jsr    roundDown
+    move.l d0,d7
+    move.l d5,d0
+    jsr    roundDown
+    move.l d0,d5
+    
+    cmp.l  d5,d6
     beq    noDrawPlayer1
 needDrawPlayer1:
-    ;jsr    invalPlayer1
+    jsr    invalPlayer
     move.l #PLAYER1_IMG_DATA,-(sp)
     move.l #PLAYER1_IMG_DATA_END,-(sp)
     move.l d6,-(sp)
@@ -243,10 +267,22 @@ needDrawPlayer1:
 noDrawPlayer1:
     move.l PLAYER2_POS_X,d6
     move.l PLAYER2_POS_Y,d7
-    cmp.l  PLAYER2_PREVIOUS_POS_X,d6
+    move.l PLAYER2_PREVIOUS_POS_X,d5
+    
+    move.l d6,d0
+    jsr    roundDown
+    move.l d0,d6
+    move.l d7,d0
+    jsr    roundDown
+    move.l d0,d7
+    move.l d5,d0
+    jsr    roundDown
+    move.l d0,d5
+    
+    cmp.l  d5,d6
     beq    noDrawPlayer2
 needDrawPlayer2:
-    ;jsr    invalPlayer1
+    jsr    invalPlayer
     move.l #PLAYER2_IMG_DATA,-(sp)
     move.l #PLAYER2_IMG_DATA_END,-(sp)
     move.l d6,-(sp)
@@ -261,46 +297,33 @@ noDrawPlayer2:
     rts
     
 ************************************
-* Repaint invalid rectangle of the background for player1
-invalPlayer1:
+* Repaint invalid rectangle of the background for player
+* INPUT: Put current x and previuous x in d6 and d5
+invalPlayer:
     move.l #BACKGROUND_IMG_DATA,-(sp)
     move.l #BACKGROUND_IMG_DATA_END,-(sp)
     move.l #0,-(sp)
     move.l #0,-(sp)
     
-    move.l d6,-(sp)
-    move.l d7,d3
-    addi.l #PLAYER_IMG_HEIGHT,d3
-    move.l d3,-(sp)
-    
-    move.l #PLAYER_IMG_WIDTH,-(sp)
+    cmp.l  d5,d6
+    blt    moveLeft
     move.l d5,d3
-    sub.l  d7,d3
+    move.l d6,d4
+    sub.l  d5,d4
+    bra    putArgs
+moveLeft:
+    move.l d6,d3
+    addi.l #PLAYER_IMG_WIDTH,d3
+    move.l d5,d4
+    sub.l  d6,d4
+putArgs:    
     move.l d3,-(sp)
+    move.l d7,-(sp)
+    move.l d4,-(sp)
+    move.l #PLAYER_IMG_HEIGHT,-(sp)
     jsr    drawImage
     add    #32,sp
     move.l PLAYER1_POS_X,PLAYER1_PREVIOUS_POS_X
-    rts
-
-************************************
-* Repaint invalid rectangle of the background for player2    
-invalPlayer2:
-    move.l #BACKGROUND_IMG_DATA,-(sp)
-    move.l #BACKGROUND_IMG_DATA_END,-(sp)
-    move.l #0,-(sp)
-    move.l #0,-(sp)
-    
-    move.l d6,-(sp)
-    move.l d7,d3
-    addi.l #PLAYER_IMG_HEIGHT,d3
-    move.l d3,-(sp)
-    
-    move.l #PLAYER_IMG_WIDTH,-(sp)
-    move.l d5,d3
-    sub.l  d7,d3
-    move.l d3,-(sp)
-    jsr    drawImage
-    add    #32,sp
     rts
 
 ************************************
@@ -330,13 +353,13 @@ WINNER                     dc.b    0
 ALIGNMENT_PLAYER_DATA      ds.l    1
 PLAYER1_POS_X              dc.l    PLAYER1_START_X
 PLAYER1_POS_Y              dc.l    PLAYER1_START_Y
-PLAYER1_PREVIOUS_POS_X     dc.l    PLAYER1_START_X+1 ;A trick to make the logic draw the very first player image
+PLAYER1_PREVIOUS_POS_X     dc.l    PLAYER1_START_X+(1<<NUMBER_BITS_OF_FRACTIONAL_PART) ;A trick to make the logic draw the very first player image
 PLAYER1_VELOCITY_X         dc.l    0
 PLAYER1_ACCELERATION_X     dc.l    0
 PLAYER1_FORCE_X            dc.l    0
 PLAYER2_POS_X              dc.l    PLAYER2_START_X
 PLAYER2_POS_Y              dc.l    PLAYER2_START_Y
-PLAYER2_PREVIOUS_POS_X     dc.l    PLAYER2_START_X+1 ;A trick to make the logic draw the very first player image
+PLAYER2_PREVIOUS_POS_X     dc.l    PLAYER2_START_X+(1<<NUMBER_BITS_OF_FRACTIONAL_PART) ;A trick to make the logic draw the very first player image
 PLAYER2_VELOCITY_X         dc.l    0
 PLAYER2_ACCELERATION_X     dc.l    0
 PLAYER2_FORCE_X            dc.l    0

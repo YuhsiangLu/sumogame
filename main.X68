@@ -198,8 +198,25 @@ doneInputPlayer2:
     
     cmp.l  #0,d7
     beq    noPlayerCollusion
-    move.l #0,PLAYER1_VELOCITY_X
-    move.l #0,PLAYER2_VELOCITY_X
+    ; Handle player collision
+    clr.l  d0
+    move.l PLAYER1_VELOCITY_X,d0
+    move.l PLAYER2_VELOCITY_X,PLAYER1_VELOCITY_X
+    move.l d0,PLAYER2_VELOCITY_X
+    
+    ; Find the center position in between two players
+    move.l PLAYER1_POS_X,d0
+    move.l PLAYER2_POS_X,d1
+    move.l d0,d2
+    add.l  #PLAYER_WIDTH,d2
+    sub.l  d1,d2
+    mulu   #(2<<(NUMBER_BITS_OF_FRACTIONAL_PART-1)),d2 ; divid by 2
+    asr.l  #NUMBER_BITS_OF_FRACTIONAL_PART,d2
+    add.l  d2,d1
+    sub.l  d2,d0
+    move.l d0,PLAYER1_POS_X
+    move.l d1,PLAYER2_POS_X
+    
 noPlayerCollusion:
     rts
     

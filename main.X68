@@ -10,7 +10,6 @@
 ALL_REG         REG D0-D7/A0-A6 ; Range of REG
 * Game parameters
 
-JUMP_FORCE                  equ 20
 PUSH_FORCE                  equ 100
 FRICTION_FORCE              equ 2
 GRAVITY_FORCE               equ 10
@@ -33,10 +32,8 @@ PLAYER1_START_Y             equ BG_IMG_HEIGHT-STAGE_HEIGHT-PLAYER_IMG_HEIGHT
 PLAYER2_START_X             equ STAGE_X_END-10-PLAYER_IMG_WIDTH
 PLAYER2_START_Y             equ PLAYER1_START_Y
 * Key codes
-KEY_UP_INPUT                equ $26
 KEY_LEFT_INPUT              equ $25
 KEY_RIGHT_INPUT             equ $27
-KEY_W_INPUT                 equ $57
 KEY_A_INPUT                 equ $41
 KEY_D_INPUT                 equ $44
 * Commands and Command parameters
@@ -104,12 +101,12 @@ swapBuffers
 getInput:
     clr.l  d2
     clr.l  d3
-    move.l #KEY_W_INPUT<<16+KEY_A_INPUT<<8+KEY_D_INPUT,d1
+    move.l #KEY_A_INPUT<<8+KEY_D_INPUT,d1
     move.b #GET_USER_INPUT_TRAP_CODE,d0
     TRAP   #15
     move.l d1,d4
     
-    move.l #KEY_UP_INPUT<<16+KEY_LEFT_INPUT<<8+KEY_RIGHT_INPUT,d1
+    move.l #KEY_LEFT_INPUT<<8+KEY_RIGHT_INPUT,d1
     move.b #GET_USER_INPUT_TRAP_CODE,d0
     TRAP   #15
     move.l d1,d5
@@ -136,15 +133,10 @@ aroundNoInput:
 * Update the objects in game according to the input from keyboard or the physic of the game world.
 * The update routine assumes the states of input will be store in d2,d3
 update:
-    ; Update according to the input
+    ; Input update
     cmpi.l #0,d2
     ble  doneInputPlayer1
-
-    move.l d2,d4
-    andi.l #$FF0000,d4
-    beq    noP1Up
-    subi.l #JUMP_FORCE,PLAYER1_FORCE_Y
-noP1Up:
+    
     move.l d2,d4
     andi.l #$FF00,d4
     beq    noP1Left
@@ -159,13 +151,42 @@ doneInputPlayer1:
     ble    doneInputPlayer2
     
     move.l d3,d4
+    andi.l #$FF00,d4
+    beq    noP2Left
+    subi.l #PUSH_FORCE,PLAYER2_FORCE_X
+noP2Left:
+    move.l d3,d4
+    andi.l #$FF,d4
+    beq    doneInputPlayer2
+    addi.l #PUSH_FORCE,PLAYER2_FORCE_X
+    move.l d3,d4
 doneInputPlayer2:
+ 
     ; Physic update
     
     ; Player1
+    lea PLAYER1_FORCE_X,a0
+    lea PLAYER1_VELOCITY_X,a1
+    lea PLAYER1_POS_X,a2
+    jsr updatePlayer
+    
+    lea PLAYER2_FORCE_X,a0
+    lea PLAYER2_VELOCITY_X,a1
+    lea PLAYER2_POS_X,a2
+    jsr updatePlayer
+    
+    rts
+    
+************************************
+* Update player
+* INPUT: Put the address of player's force, velocity, and position to a0, a1, a2
+
+updatePlayer
+    movem.l ALL_REG,-(sp)
+
     ; Update acceleration f=ma, m=1
-    move.l PLAYER1_FORCE_X,d4
-    move.l PLAYER1_VELOCITY_X,d5
+    move.l (a0),d4
+    move.l (a1),d5
     beq    aroundFrictionForce
     blt    posiveFrictionForce
     ; Negative friction
@@ -186,31 +207,28 @@ noCancelOutPositiveFrictionForce:
    
     ;Update velocity v=v0+a*t
 aroundFrictionForce:
-    move.l #0,PLAYER1_FORCE_X
+    move.l #0,(a0)
     add.l  d4,d5
-    move.l d5,PLAYER1_VELOCITY_X
+    move.l d5,(a1)
 
     ; Update position s=s0+v*t
     asr.l  #8,d5
-    add.l  d5,PLAYER1_POS_X
+    add.l  d5,(a2)
     
-    
-    
+    movem.l (sp)+,ALL_REG
     rts
-    
-    ; Drawing function
+************************************      
+* Drawing function
     INCLUDE "draw_image.X68"
     
 ************************************    
-* Draw player's position according to players's position in d6,d7
+* Draw player image
 drawPlayers:
     move.l PLAYER1_POS_X,d6
     move.l PLAYER1_POS_Y,d7
     cmp.l  PLAYER1_PREVIOUS_POS_X,d6
-    bne    needDrawPlayers
-    cmp.l  PLAYER1_PREVIOUS_POS_Y,d7
-    beq    noDrawPlayers
-needDrawPlayers:
+    beq    noDrawPlayer1
+needDrawPlayer1:
     ;jsr    invalPlayer1
     move.l #PLAYER1_IMG_DATA,-(sp)
     move.l #PLAYER1_IMG_DATA_END,-(sp)
@@ -222,7 +240,24 @@ needDrawPlayers:
     move.l #PLAYER_IMG_HEIGHT,-(sp)
     jsr    drawImage
     add    #32,sp
-noDrawPlayers:
+noDrawPlayer1:
+    move.l PLAYER2_POS_X,d6
+    move.l PLAYER2_POS_Y,d7
+    cmp.l  PLAYER2_PREVIOUS_POS_X,d6
+    beq    noDrawPlayer2
+needDrawPlayer2:
+    ;jsr    invalPlayer1
+    move.l #PLAYER2_IMG_DATA,-(sp)
+    move.l #PLAYER2_IMG_DATA_END,-(sp)
+    move.l d6,-(sp)
+    move.l d7,-(sp)
+    move.l #0,-(sp)
+    move.l #0,-(sp)
+    move.l #PLAYER_IMG_WIDTH,-(sp)
+    move.l #PLAYER_IMG_HEIGHT,-(sp)
+    jsr    drawImage
+    add    #32,sp
+noDrawPlayer2:
     rts
     
 ************************************
@@ -245,7 +280,6 @@ invalPlayer1:
     jsr    drawImage
     add    #32,sp
     move.l PLAYER1_POS_X,PLAYER1_PREVIOUS_POS_X
-    move.l PLAYER1_POS_Y,PLAYER1_PREVIOUS_POS_Y
     rts
 
 ************************************
@@ -297,23 +331,15 @@ ALIGNMENT_PLAYER_DATA      ds.l    1
 PLAYER1_POS_X              dc.l    PLAYER1_START_X
 PLAYER1_POS_Y              dc.l    PLAYER1_START_Y
 PLAYER1_PREVIOUS_POS_X     dc.l    PLAYER1_START_X+1 ;A trick to make the logic draw the very first player image
-PLAYER1_PREVIOUS_POS_Y     dc.l    PLAYER1_START_Y+1
 PLAYER1_VELOCITY_X         dc.l    0
-PLAYER1_VELOCITY_Y         dc.l    0
 PLAYER1_ACCELERATION_X     dc.l    0
-PLAYER1_ACCELERATION_Y     dc.l    0
 PLAYER1_FORCE_X            dc.l    0
-PLAYER1_FORCE_Y            dc.l    0
 PLAYER2_POS_X              dc.l    PLAYER2_START_X
 PLAYER2_POS_Y              dc.l    PLAYER2_START_Y
 PLAYER2_PREVIOUS_POS_X     dc.l    PLAYER2_START_X+1 ;A trick to make the logic draw the very first player image
-PLAYER2_PREVIOUS_POS_Y     dc.l    PLAYER2_START_Y+1
 PLAYER2_VELOCITY_X         dc.l    0
-PLAYER2_VELOCITY_Y         dc.l    0
 PLAYER2_ACCELERATION_X     dc.l    0
-PLAYER2_ACCELERATION_Y     dc.l    0
 PLAYER2_FORCE_X            dc.l    0
-PLAYER2_FORCE_Y            dc.l    0
 
     END    START        ; last line of source
 

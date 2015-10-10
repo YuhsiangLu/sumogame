@@ -12,8 +12,8 @@ NUMBER_BITS_OF_FRACTIONAL_PART equ 8
 ADD_FOR_ROUND                  equ 1<<(NUMBER_BITS_OF_FRACTIONAL_PART-1)  ; For negative fix point number truncate
 * Game parameters
 
-PUSH_FORCE                  equ 100
-FRICTION_FORCE              equ 1
+PUSH_FORCE                  equ 200
+FRICTION_FORCE              equ 10
 GRAVITY_FORCE               equ 10
 * Background image
 BG_START_X                  equ 0
@@ -33,6 +33,8 @@ PLAYER1_START_X             equ (STAGE_X_BEGIN+10)<<NUMBER_BITS_OF_FRACTIONAL_PA
 PLAYER1_START_Y             equ (BG_IMG_HEIGHT-STAGE_HEIGHT-PLAYER_IMG_HEIGHT)<<NUMBER_BITS_OF_FRACTIONAL_PART
 PLAYER2_START_X             equ (STAGE_X_END-10-PLAYER_IMG_WIDTH)<<NUMBER_BITS_OF_FRACTIONAL_PART
 PLAYER2_START_Y             equ PLAYER1_START_Y
+PLAYER_WIDTH                equ PLAYER_IMG_WIDTH<<NUMBER_BITS_OF_FRACTIONAL_PART
+PLAYER_HEIGHT               equ PLAYER_IMG_HEIGHT<<NUMBER_BITS_OF_FRACTIONAL_PART
 * Key codes
 KEY_LEFT_INPUT              equ $25
 KEY_RIGHT_INPUT             equ $27
@@ -175,20 +177,77 @@ doneInputPlayer2:
     lea PLAYER1_PREVIOUS_POS_X,a3
     jsr updatePlayer
     
+    ; Player2
     lea PLAYER2_FORCE_X,a0
     lea PLAYER2_VELOCITY_X,a1
     lea PLAYER2_POS_X,a2
     lea PLAYER2_PREVIOUS_POS_X,a3
     jsr updatePlayer
     
+    ; Check player collision
+    move.l PLAYER1_POS_X,-(sp)
+    move.l PLAYER1_POS_Y,-(sp)
+    move.l #PLAYER_WIDTH,-(sp)
+    move.l #PLAYER_HEIGHT,-(sp)
+    move.l PLAYER2_POS_X,-(sp)
+    move.l PLAYER2_POS_Y,-(sp)
+    move.l #PLAYER_WIDTH,-(sp)
+    move.l #PLAYER_HEIGHT,-(sp)
+    jsr    IsCollided
+    add.l  #32,sp
+    
+    cmp.l  #0,d7
+    beq    noPlayerCollusion
+    move.l #0,PLAYER1_VELOCITY_X
+    move.l #0,PLAYER2_VELOCITY_X
+noPlayerCollusion:
     rts
+    
+************************************
+* Collision check
+* INPUT: Put x1, y1, width1, height1, x2, y2, width2, height2 in the stack
+* OUTPUT: d7, 1 collision, 0 otherwise
+ARG_COL_HEIGHT2_OFFSET       equ 4
+ARG_COL_WIDTH2_OFFSET        equ ARG_COL_HEIGHT2_OFFSET+4
+ARG_COL_Y2_OFFSET            equ ARG_COL_WIDTH2_OFFSET+4
+ARG_COL_X2_OFFSET            equ ARG_COL_Y2_OFFSET+4
+ARG_COL_HEIGHT1_OFFSET       equ ARG_COL_X2_OFFSET+4
+ARG_COL_WIDTH1_OFFSET        equ ARG_COL_HEIGHT1_OFFSET+4
+ARG_COL_Y1_OFFSET            equ ARG_COL_WIDTH1_OFFSET+4
+ARG_COL_X1_OFFSET            equ ARG_COL_Y1_OFFSET+4
+
+IsCollided:
+    clr.l   d7
+    move.l  ARG_COL_X2_OFFSET(sp),d1
+    add.l   ARG_COL_WIDTH2_OFFSET(sp),d1
+    cmp.l   ARG_COL_X1_OFFSET(sp),d1
+    blt     noCollision
+    
+    move.l  ARG_COL_X1_OFFSET(sp),d1
+    add.l   ARG_COL_WIDTH1_OFFSET(sp),d1
+    cmp.l   ARG_COL_X2_OFFSET(sp),d1
+    blt     noCollision
+    
+    move.l  ARG_COL_Y2_OFFSET(sp),d1
+    add.l   ARG_COL_HEIGHT2_OFFSET(sp),d1
+    cmp.l   ARG_COL_Y1_OFFSET(sp),d1
+    blt     noCollision
+    
+    move.l  ARG_COL_Y1_OFFSET(sp),d1
+    add.l   ARG_COL_WIDTH1_OFFSET(sp),d1
+    cmp.l   ARG_COL_Y2_OFFSET(sp),d1
+    blt     noCollision
+collision:
+    move.l  #1,d7    
+noCollision:
+    rts    
     
 ************************************
 * Update player
 * INPUT: Put the address of player's force, velocity, current position and previous position to a0, a1, a2, a3
 
 updatePlayer
-    ; Update acceleration f=ma, m=1
+    ; Update acceleration f=ma, m=1, f=a
     move.l (a2),(a3)
     move.l (a0),d4
     move.l (a1),d5
@@ -355,13 +414,11 @@ PLAYER1_POS_X              dc.l    PLAYER1_START_X
 PLAYER1_POS_Y              dc.l    PLAYER1_START_Y
 PLAYER1_PREVIOUS_POS_X     dc.l    PLAYER1_START_X+(1<<NUMBER_BITS_OF_FRACTIONAL_PART) ;A trick to make the logic draw the very first player image
 PLAYER1_VELOCITY_X         dc.l    0
-PLAYER1_ACCELERATION_X     dc.l    0
 PLAYER1_FORCE_X            dc.l    0
 PLAYER2_POS_X              dc.l    PLAYER2_START_X
 PLAYER2_POS_Y              dc.l    PLAYER2_START_Y
 PLAYER2_PREVIOUS_POS_X     dc.l    PLAYER2_START_X+(1<<NUMBER_BITS_OF_FRACTIONAL_PART) ;A trick to make the logic draw the very first player image
 PLAYER2_VELOCITY_X         dc.l    0
-PLAYER2_ACCELERATION_X     dc.l    0
 PLAYER2_FORCE_X            dc.l    0
 
     END    START        ; last line of source

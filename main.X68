@@ -360,7 +360,7 @@ drawPlayers:
     move.l PLAYER1_POS_X,d6
     move.l PLAYER1_POS_Y,d7
     move.l PLAYER1_PREVIOUS_POS_X,d5
-    move.l PLAYER1_PREVIOUS_POS_X,d4
+    move.l PLAYER1_PREVIOUS_POS_Y,d4
     
     move.l d6,d0
     jsr    roundDown
@@ -503,6 +503,7 @@ PLAYER2_VELOCITY_Y         dc.l    0
 PLAYER2_FORCE_X            dc.l    0
 
     END    START        ; last line of source
+
 
 
 

@@ -380,7 +380,7 @@ drawPlayers:
     cmp.l  d5,d6
     beq    noDrawPlayer1
 needDrawPlayer1:
-    ;jsr    invalPlayer
+    jsr    invalPlayer
     move.l #PLAYER1_IMG_DATA,-(sp)
     move.l #PLAYER1_IMG_DATA_END,-(sp)
     move.l d6,-(sp)
@@ -396,7 +396,7 @@ noDrawPlayer1:
     move.l PLAYER2_POS_X,d6
     move.l PLAYER2_POS_Y,d7
     move.l PLAYER2_PREVIOUS_POS_X,d5
-    move.l PLAYER2_PREVIOUS_POS_X,d4
+    move.l PLAYER2_PREVIOUS_POS_Y,d4
     
     move.l d6,d0
     jsr    roundDown
@@ -416,7 +416,7 @@ noDrawPlayer1:
     cmp.l  d5,d6
     beq    noDrawPlayer2
 needDrawPlayer2:
-    ;jsr    invalPlayer
+    jsr    invalPlayer
     move.l #PLAYER2_IMG_DATA,-(sp)
     move.l #PLAYER2_IMG_DATA_END,-(sp)
     move.l d6,-(sp)
@@ -490,19 +490,20 @@ ALIGNMENT_PLAYER_DATA      ds.l    1
 PLAYER1_POS_X              dc.l    PLAYER1_START_X
 PLAYER1_POS_Y              dc.l    PLAYER1_START_Y
 PLAYER1_PREVIOUS_POS_X     dc.l    PLAYER1_START_X+(1<<NUMBER_BITS_OF_FRACTIONAL_PART) ;A trick to make the logic draw the very first player image
-PLAYER1_PREVIOUS_POS_Y     dc.l    PLAYER1_START_Y+(1<<NUMBER_BITS_OF_FRACTIONAL_PART)
+PLAYER1_PREVIOUS_POS_Y     dc.l    PLAYER1_START_Y
 PLAYER1_VELOCITY_X         dc.l    0
 PLAYER1_VELOCITY_Y         dc.l    0
 PLAYER1_FORCE_X            dc.l    0
 PLAYER2_POS_X              dc.l    PLAYER2_START_X
 PLAYER2_POS_Y              dc.l    PLAYER2_START_Y
 PLAYER2_PREVIOUS_POS_X     dc.l    PLAYER2_START_X+(1<<NUMBER_BITS_OF_FRACTIONAL_PART) ;A trick to make the logic draw the very first player image
-PLAYER2_PREVIOUS_POS_Y     dc.l    PLAYER2_START_Y+(1<<NUMBER_BITS_OF_FRACTIONAL_PART)
+PLAYER2_PREVIOUS_POS_Y     dc.l    PLAYER2_START_Y
 PLAYER2_VELOCITY_X         dc.l    0
 PLAYER2_VELOCITY_Y         dc.l    0
 PLAYER2_FORCE_X            dc.l    0
 
     END    START        ; last line of source
+
 
 
 

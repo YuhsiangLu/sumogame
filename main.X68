@@ -12,10 +12,9 @@ TRANSPARENT_COLOR_GREEN        equ $0000FF00
 NUMBER_BITS_OF_FRACTIONAL_PART equ 8
 ADD_FOR_ROUND                  equ 1<<(NUMBER_BITS_OF_FRACTIONAL_PART-1)  ; For negative fix point number truncate
 * Game parameters
-
 PUSH_FORCE                  equ 500
 FRICTION_FORCE              equ 50
-GRAVITY_FORCE               equ 10
+GRAVITY_FORCE               equ 100
 * Background image
 BG_START_X                  equ 0
 BG_START_Y                  equ 0
@@ -27,14 +26,16 @@ PLAYER_IMG_HEIGHT           equ 64
 * Stage
 STAGE_WIDTH                 equ 744
 STAGE_HEIGHT                equ 100
-STAGE_X_BEGIN               equ (BG_IMG_WIDTH/2-STAGE_WIDTH/2)
-STAGE_X_END                 equ (BG_IMG_WIDTH/2+STAGE_WIDTH/2)
+STAGE_X_BEGIN               equ (BG_IMG_WIDTH/2-STAGE_WIDTH/2)<<NUMBER_BITS_OF_FRACTIONAL_PART
+STAGE_X_END                 equ (BG_IMG_WIDTH/2+STAGE_WIDTH/2)<<NUMBER_BITS_OF_FRACTIONAL_PART
+MAX_Y                       equ (BG_IMG_HEIGHT+PLAYER_IMG_HEIGHT)<<NUMBER_BITS_OF_FRACTIONAL_PART
 * Player
-PLAYER1_START_X             equ (STAGE_X_BEGIN+10)<<NUMBER_BITS_OF_FRACTIONAL_PART
+PLAYER1_START_X             equ STAGE_X_BEGIN+10<<NUMBER_BITS_OF_FRACTIONAL_PART
 PLAYER1_START_Y             equ (BG_IMG_HEIGHT-STAGE_HEIGHT-PLAYER_IMG_HEIGHT)<<NUMBER_BITS_OF_FRACTIONAL_PART
-PLAYER2_START_X             equ (STAGE_X_END-10-PLAYER_IMG_WIDTH)<<NUMBER_BITS_OF_FRACTIONAL_PART
+PLAYER2_START_X             equ STAGE_X_END-(10+PLAYER_IMG_WIDTH)<<NUMBER_BITS_OF_FRACTIONAL_PART
 PLAYER2_START_Y             equ PLAYER1_START_Y
 PLAYER_WIDTH                equ PLAYER_IMG_WIDTH<<NUMBER_BITS_OF_FRACTIONAL_PART
+PLAYER_HALF_WIDTH           equ (PLAYER_IMG_WIDTH/2)<<NUMBER_BITS_OF_FRACTIONAL_PART ; Quite often used in runtime
 PLAYER_HEIGHT               equ PLAYER_IMG_HEIGHT<<NUMBER_BITS_OF_FRACTIONAL_PART
 * Key codes
 KEY_LEFT_INPUT              equ $25
@@ -143,7 +144,10 @@ aroundNoInput:
 update:
     ; Input update
     cmpi.l #0,d2
-    ble  doneInputPlayer1
+    ble    doneInputPlayer1
+    
+    move.l PLAYER1_VELOCITY_Y,d5
+    bne    doneInputPlayer1
     
     move.l d2,d4
     andi.l #$FF00,d4
@@ -157,6 +161,9 @@ noP1Left:
 doneInputPlayer1:
     cmpi.l #0,d3
     ble    doneInputPlayer2
+    
+    move.l PLAYER2_VELOCITY_Y,d5
+    bne    doneInputPlayer2
     
     move.l d3,d4
     andi.l #$FF00,d4
@@ -177,6 +184,9 @@ doneInputPlayer2:
     lea PLAYER1_VELOCITY_X,a1
     lea PLAYER1_POS_X,a2
     lea PLAYER1_PREVIOUS_POS_X,a3
+    lea PLAYER1_VELOCITY_Y,a4
+    lea PLAYER1_POS_Y,a5
+    lea PLAYER1_PREVIOUS_POS_Y,a6
     jsr updatePlayer
     
     ; Player2
@@ -184,6 +194,9 @@ doneInputPlayer2:
     lea PLAYER2_VELOCITY_X,a1
     lea PLAYER2_POS_X,a2
     lea PLAYER2_PREVIOUS_POS_X,a3
+    lea PLAYER2_VELOCITY_Y,a4
+    lea PLAYER2_POS_Y,a5
+    lea PLAYER2_PREVIOUS_POS_Y,a6
     jsr updatePlayer
     
     ; Check player collision
@@ -195,7 +208,7 @@ doneInputPlayer2:
     move.l PLAYER2_POS_Y,-(sp)
     move.l #PLAYER_WIDTH,-(sp)
     move.l #PLAYER_HEIGHT,-(sp)
-    jsr    IsCollided
+    jsr    isCollided
     add.l  #32,sp
     
     cmp.l  #0,d7
@@ -235,7 +248,7 @@ ARG_COL_WIDTH1_OFFSET        equ ARG_COL_HEIGHT1_OFFSET+4
 ARG_COL_Y1_OFFSET            equ ARG_COL_WIDTH1_OFFSET+4
 ARG_COL_X1_OFFSET            equ ARG_COL_Y1_OFFSET+4
 
-IsCollided:
+isCollided:
     clr.l   d7
     move.l  ARG_COL_X2_OFFSET(sp),d1
     add.l   ARG_COL_WIDTH2_OFFSET(sp),d1
@@ -263,11 +276,12 @@ noCollision:
     
 ************************************
 * Update player
-* INPUT: Put the address of player's force, velocity, current position and previous position to a0, a1, a2, a3
+* INPUT: Put the address of player's x force, x velocity, current x position and previous x position to a0, a1, a2, a3
 
 updatePlayer
     ; Update acceleration f=ma, m=1, f=a
-    move.l (a2),(a3)
+    move.l (a2),d3
+    move.l d3,(a3)
     move.l (a0),d4
     move.l (a1),d5
     beq    aroundFrictionForce
@@ -296,8 +310,37 @@ aroundFrictionForce:
     move.l d5,(a1)
 
     ; Update position s=s0+v*t
-    add.l  d5,(a2)
+    add.l  d5,d3
+    move.l d3,(a2)
+    
+    ; Check if it fall off the stage
+    move.l #STAGE_X_BEGIN,d0
+    move.l #STAGE_X_END,d1
+    addi.l #PLAYER_HALF_WIDTH,d3
+    cmp.l  d3,d0
+    bgt    playerFreeFall
+    cmp.l  d3,d1
+    bgt    noFreeFall
+playerFreeFall:
+    jsr    freeFall
+noFreeFall:
     rts
+    
+************************************      
+* Free fall function
+* INPUT: Put the address of object's y velocity, current y position and previous y position to a4, a5, a6
+freeFall:
+    move.l  (a5),d1
+    move.l  d1,(a6)
+    cmpi.l  #MAX_Y,d1
+    bgt     outOfScreen
+    move.l  (a4),d0
+    addi.l  #GRAVITY_FORCE,d0
+    add.l   d0,d1
+    move.l  d1,(a5)
+    move.l  d0,(a4)
+outOfScreen:
+    rts   
 ************************************      
 * Drawing function
     INCLUDE "draw_image.X68"
@@ -317,6 +360,7 @@ drawPlayers:
     move.l PLAYER1_POS_X,d6
     move.l PLAYER1_POS_Y,d7
     move.l PLAYER1_PREVIOUS_POS_X,d5
+    move.l PLAYER1_PREVIOUS_POS_X,d4
     
     move.l d6,d0
     jsr    roundDown
@@ -327,11 +371,16 @@ drawPlayers:
     move.l d5,d0
     jsr    roundDown
     move.l d0,d5
+    move.l d4,d0
+    jsr    roundDown
+    move.l d0,d4
     
+    cmp.l  d4,d7
+    bne    needDrawPlayer1
     cmp.l  d5,d6
     beq    noDrawPlayer1
 needDrawPlayer1:
-    jsr    invalPlayer
+    ;jsr    invalPlayer
     move.l #PLAYER1_IMG_DATA,-(sp)
     move.l #PLAYER1_IMG_DATA_END,-(sp)
     move.l d6,-(sp)
@@ -347,6 +396,7 @@ noDrawPlayer1:
     move.l PLAYER2_POS_X,d6
     move.l PLAYER2_POS_Y,d7
     move.l PLAYER2_PREVIOUS_POS_X,d5
+    move.l PLAYER2_PREVIOUS_POS_X,d4
     
     move.l d6,d0
     jsr    roundDown
@@ -357,11 +407,16 @@ noDrawPlayer1:
     move.l d5,d0
     jsr    roundDown
     move.l d0,d5
+    move.l d4,d0
+    jsr    roundDown
+    move.l d0,d4
     
+    cmp.l  d4,d7
+    bne    needDrawPlayer2
     cmp.l  d5,d6
     beq    noDrawPlayer2
 needDrawPlayer2:
-    jsr    invalPlayer
+    ;jsr    invalPlayer
     move.l #PLAYER2_IMG_DATA,-(sp)
     move.l #PLAYER2_IMG_DATA_END,-(sp)
     move.l d6,-(sp)
@@ -435,12 +490,16 @@ ALIGNMENT_PLAYER_DATA      ds.l    1
 PLAYER1_POS_X              dc.l    PLAYER1_START_X
 PLAYER1_POS_Y              dc.l    PLAYER1_START_Y
 PLAYER1_PREVIOUS_POS_X     dc.l    PLAYER1_START_X+(1<<NUMBER_BITS_OF_FRACTIONAL_PART) ;A trick to make the logic draw the very first player image
+PLAYER1_PREVIOUS_POS_Y     dc.l    PLAYER1_START_Y+(1<<NUMBER_BITS_OF_FRACTIONAL_PART)
 PLAYER1_VELOCITY_X         dc.l    0
+PLAYER1_VELOCITY_Y         dc.l    0
 PLAYER1_FORCE_X            dc.l    0
 PLAYER2_POS_X              dc.l    PLAYER2_START_X
 PLAYER2_POS_Y              dc.l    PLAYER2_START_Y
 PLAYER2_PREVIOUS_POS_X     dc.l    PLAYER2_START_X+(1<<NUMBER_BITS_OF_FRACTIONAL_PART) ;A trick to make the logic draw the very first player image
+PLAYER2_PREVIOUS_POS_Y     dc.l    PLAYER2_START_Y+(1<<NUMBER_BITS_OF_FRACTIONAL_PART)
 PLAYER2_VELOCITY_X         dc.l    0
+PLAYER2_VELOCITY_Y         dc.l    0
 PLAYER2_FORCE_X            dc.l    0
 
     END    START        ; last line of source

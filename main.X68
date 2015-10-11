@@ -433,33 +433,21 @@ noDrawPlayer2:
     
 ************************************
 * Repaint invalid rectangle of the background for player
-* INPUT: Put current x and previuous x in d6 and d5
+* INPUT: Put current x and previuous x in d6 and d5, current y and previous y in d7 and d4
 invalPlayer:
     move.l #BACKGROUND_IMG_DATA,-(sp)
     move.l #BACKGROUND_IMG_DATA_END,-(sp)
     move.l #0,-(sp)
     move.l #0,-(sp)
     
-    cmp.l  d5,d6
-    blt    moveLeft
-    move.l d5,d3
-    move.l d6,d4
-    sub.l  d5,d4
-    bra    putArgs
-moveLeft:
-    move.l d6,d3
-    addi.l #PLAYER_IMG_WIDTH,d3
-    move.l d5,d4
-    sub.l  d6,d4
-putArgs:    
-    move.l d3,-(sp)
-    move.l d7,-(sp)
+
+    move.l d5,-(sp)
     move.l d4,-(sp)
+    move.l #PLAYER_IMG_WIDTH,-(sp)
     move.l #PLAYER_IMG_HEIGHT,-(sp)
     move.l #0,-(sp)
     jsr    drawImage
     add    #36,sp
-    move.l PLAYER1_POS_X,PLAYER1_PREVIOUS_POS_X
     rts
 
 ************************************
@@ -503,6 +491,7 @@ PLAYER2_VELOCITY_Y         dc.l    0
 PLAYER2_FORCE_X            dc.l    0
 
     END    START        ; last line of source
+
 
 
 

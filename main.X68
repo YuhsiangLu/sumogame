@@ -16,7 +16,7 @@ H_SECS_PER_FRAME               equ 4 ; hundredth seconds per frame, 1 frame/0.0x
 * Game parameters
 PUSH_FORCE                  equ 500
 FRICTION_FORCE              equ 100
-GRAVITY_FORCE               equ 100
+GRAVITY_FORCE               equ 10
 MASS_CHANGE                 equ 1
 FOOD_DROP_INTERVAL          equ 100
 * Background image
@@ -390,6 +390,7 @@ updateFood:
 
     move.l FOOD_POS_X,d5
     move.l FOOD_POS_Y,d6
+    move.l d5,FOOD_PREVIOUS_POS_X
 ; Check player1 collision
     move.l PLAYER1_POS_X,-(sp)
     move.l PLAYER1_POS_Y,-(sp)
@@ -425,7 +426,6 @@ noPlayer1Collision:
     addi.l #MASS_CHANGE,PLAYER2_MASS
     move.l #MAX_Y,d6
 foodCollisionDone:
-
     cmpi.l  #MAX_Y,d6
     blt     noDropFood
     clr.l   d1
@@ -444,8 +444,8 @@ foodCollisionDone:
     jsr     getRandomWordIntoD7
     lsl.l   #NUMBER_BITS_OF_FRACTIONAL_PART,d7
     move.l  d7,d5
-noDropFood:
     move.l  d5,FOOD_POS_X
+noDropFood:
     move.l  d6,FOOD_POS_Y
     rts
 
@@ -516,8 +516,9 @@ freeFall:
     move.l  (a4),d0
     move.l  #GRAVITY_FORCE,d5
     move.l  ROUNDS,d6
-    mulu    d5,d6
-    add.l   d6,d0
+    mulu    d6,d5
+    add.l   d5,d0
+    mulu    d6,d0
     add.l   d0,d1
     move.l  d1,(a5)
     bra freeFallDone
@@ -576,9 +577,14 @@ p1Win:
 * Draw food image
 drawFood:
     move.l FOOD_POS_X,d6
+    move.l FOOD_PREVIOUS_POS_X,d4
     move.l FOOD_POS_Y,d7
+    move.l FOOD_PREVIOUS_POS_Y,d5
     cmpi.l #MAX_Y,d7
     bge    noDrawFood
+    
+    move.l #FOOD_IMG_WIDTH,d2
+    move.l #FOOD_IMG_HEIGHT,d3
     
     move.l d6,d0
     jsr    roundDown
@@ -586,7 +592,19 @@ drawFood:
     move.l d7,d0
     jsr    roundDown
     move.l d0,d7
+    move.l d5,d0
+    jsr    roundDown
+    move.l d0,d5
+    move.l d4,d0
+    jsr    roundDown
+    move.l d0,d4
     
+    cmp.l  d5,d7
+    bne    needDrawFood
+    cmp.l  d4,d6
+    beq    noDrawFood
+needDrawFood: 
+    jsr    invalIcon
     move.l #FOOD_IMG_DATA,-(sp)
     move.l #FOOD_IMG_DATA_END,-(sp)
     move.l d6,-(sp)
@@ -607,8 +625,11 @@ noDrawFood:
 drawPlayers:
     move.l PLAYER1_POS_X,d6
     move.l PLAYER1_POS_Y,d7
-    move.l PLAYER1_PREVIOUS_POS_X,d5
-    move.l PLAYER1_PREVIOUS_POS_Y,d4
+    move.l PLAYER1_PREVIOUS_POS_X,d4
+    move.l PLAYER1_PREVIOUS_POS_Y,d5
+    
+    move.l #PLAYER_IMG_WIDTH,d2
+    move.l #PLAYER_IMG_HEIGHT,d3
     
     move.l d6,d0
     jsr    roundDown
@@ -623,12 +644,12 @@ drawPlayers:
     jsr    roundDown
     move.l d0,d4
     
-    cmp.l  d4,d7
+    cmp.l  d5,d7
     bne    needDrawPlayer1
-    cmp.l  d5,d6
+    cmp.l  d4,d6
     beq    noDrawPlayer1
 needDrawPlayer1:
-    jsr    invalPlayer
+    jsr    invalIcon
     move.l #PLAYER1_IMG_DATA,-(sp)
     move.l #PLAYER1_IMG_DATA_END,-(sp)
     move.l d6,-(sp)
@@ -643,8 +664,11 @@ needDrawPlayer1:
 noDrawPlayer1:
     move.l PLAYER2_POS_X,d6
     move.l PLAYER2_POS_Y,d7
-    move.l PLAYER2_PREVIOUS_POS_X,d5
-    move.l PLAYER2_PREVIOUS_POS_Y,d4
+    move.l PLAYER2_PREVIOUS_POS_X,d4
+    move.l PLAYER2_PREVIOUS_POS_Y,d5
+    
+    move.l #PLAYER_IMG_WIDTH,d2
+    move.l #PLAYER_IMG_HEIGHT,d3
     
     move.l d6,d0
     jsr    roundDown
@@ -659,12 +683,12 @@ noDrawPlayer1:
     jsr    roundDown
     move.l d0,d4
     
-    cmp.l  d4,d7
+    cmp.l  d5,d7
     bne    needDrawPlayer2
-    cmp.l  d5,d6
+    cmp.l  d4,d6
     beq    noDrawPlayer2
 needDrawPlayer2:
-    jsr    invalPlayer
+    jsr    invalIcon
     move.l #PLAYER2_IMG_DATA,-(sp)
     move.l #PLAYER2_IMG_DATA_END,-(sp)
     move.l d6,-(sp)
@@ -681,18 +705,16 @@ noDrawPlayer2:
     
 ************************************
 * Repaint invalid rectangle of the background for player
-* INPUT: Put current x and previuous x in d6 and d5, current y and previous y in d7 and d4
-invalPlayer:
+* INPUT: Put previous x, previous y in d4 and d5, width, height in d2 and d3
+invalIcon:
     move.l #BACKGROUND_IMG_DATA,-(sp)
     move.l #BACKGROUND_IMG_DATA_END,-(sp)
     move.l #0,-(sp)
     move.l #0,-(sp)
-    
-
-    move.l d5,-(sp)
     move.l d4,-(sp)
-    move.l #PLAYER_IMG_WIDTH,-(sp)
-    move.l #PLAYER_IMG_HEIGHT,-(sp)
+    move.l d5,-(sp)
+    move.l d2,-(sp)
+    move.l d3,-(sp)
     move.l #0,-(sp)
     jsr    drawImage
     add    #36,sp
@@ -732,8 +754,8 @@ PLAYER2_VELOCITY_Y         dc.l    0
 PLAYER2_FORCE_X            dc.l    0
 FOOD_POS_X                 dc.l    (STAGE_X_BEGIN+STAGE_X_END)/2<<NUMBER_BITS_OF_FRACTIONAL_PART
 FOOD_POS_Y                 dc.l    MAX_Y
-FOOD_PREVIOUS_POS_X        dc.l    0
-FOOD_PREVIOUS_POS_Y        dc.l    0
+FOOD_PREVIOUS_POS_X        dc.l    (STAGE_X_BEGIN+STAGE_X_END)/2<<NUMBER_BITS_OF_FRACTIONAL_PART
+FOOD_PREVIOUS_POS_Y        dc.l    MAX_Y
 FOOD_VELOCITY_Y            dc.l    0
 
 
@@ -762,6 +784,7 @@ ALIGNMENT_FOOD             ds.l    0
 FOOD_IMG_DATA              INCBIN  "sushi.bmp"
 FOOD_IMG_DATA_END          ds.b    0
     END    START        ; last line of source
+
 
 
 

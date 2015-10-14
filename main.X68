@@ -11,7 +11,8 @@ ALL_REG         REG D0-D7/A0-A6 ; Range of REG
 TRANSPARENT_COLOR_GREEN        equ $0000FF00
 NUMBER_BITS_OF_FRACTIONAL_PART equ 8
 ADD_FOR_ROUND                  equ 1<<(NUMBER_BITS_OF_FRACTIONAL_PART-1)  ; For negative fix point number truncate
-LARGE_NUMBER                   equ     $5678   ; For randomness
+LARGE_NUMBER                   equ $5678   ; For randomness
+H_SECS_PER_FRAME               equ 4 ; hundredth seconds per frame, 1 frame/0.0x sec , for ex, 4 means 1/0.04 => 25fps
 * Game parameters
 PUSH_FORCE                  equ 500
 FRICTION_FORCE              equ 50
@@ -91,9 +92,27 @@ START:
     jsr    drawPlayers
     jsr    swapBuffers
     
-    jsr     seedRandomNumber
+    ; Initialize the random seed
+    jsr    seedRandomNumber
+    
+    ; Initialize the time
+    move.b  #GET_TIME_TRAP_CODE,d0
+    TRAP    #15
+    move.l  d1,LAST_UPDATE_TIME
     
 gameLoop:
+    ; Update the time for this update
+    move.b  #GET_TIME_TRAP_CODE,d0
+    TRAP    #15
+    move.l  d1,d4
+    sub.l   LAST_UPDATE_TIME,d1
+    cmpi.l  #H_SECS_PER_FRAME,d1
+    blt     gameLoop
+    move.l  d4,LAST_UPDATE_TIME
+    divu    #H_SECS_PER_FRAME,d1
+    ext.l   d1
+    move.l  d1,ROUNDS
+
     ; Get input commands
     jsr getInput
     
@@ -410,16 +429,14 @@ foodCollisionDone:
     cmpi.l  #MAX_Y,d6
     blt     noDropFood
     clr.l   d1
-    move.b  #GET_TIME_TRAP_CODE,d0
-    TRAP    #15
     move.l  LAST_FOOD_DROP_TIME,d2
-    move.l  d1,d3
+    move.l  LAST_UPDATE_TIME,d1
     sub.l   d2,d1
     cmpi.l  #FOOD_DROP_INTERVAL,d1
     blt     noDropFood
     
     ; Find a random x in between stage to drop
-    move.l  d3,LAST_FOOD_DROP_TIME
+    move.l  LAST_UPDATE_TIME,LAST_FOOD_DROP_TIME
     move.l  #-FOOD_HEIGHT,d6
     move.l  #(STAGE_X_BEGIN-1)>>NUMBER_BITS_OF_FRACTIONAL_PART,d2
     move.l  #(STAGE_X_END-FOOD_WIDTH-1)>>NUMBER_BITS_OF_FRACTIONAL_PART,d3
@@ -464,10 +481,14 @@ noCancelOutPositiveFrictionForce:
     ;Update velocity v=v0+a*t
 aroundFrictionForce:
     move.l #0,(a0)
+    ;mulu   ROUNDS,d4
     add.l  d4,d5
     move.l d5,(a1)
 
     ; Update position s=s0+v*t
+    ;asr.l  #8,d5
+    ;mulu   ROUNDS,d5
+    ;lsl.l  #8,d5
     add.l  d5,d3
     move.l d3,(a2)
     
@@ -687,6 +708,8 @@ HAVE_HAD_NO_INPUT          dc.b    1
 
 ALIGNMENT_PLAYER_DATA      ds.l    1
 RANDOMVAL                  dc.l    0
+LAST_UPDATE_TIME           dc.l    0
+ROUNDS                     dc.l    0
 LAST_FOOD_DROP_TIME        dc.l    0
 PLAYER1_MASS               dc.l    1
 PLAYER1_POS_X              dc.l    PLAYER1_START_X
@@ -736,6 +759,8 @@ ALIGNMENT_FOOD             ds.l    0
 FOOD_IMG_DATA              INCBIN  "sushi.bmp"
 FOOD_IMG_DATA_END          ds.b    0
     END    START        ; last line of source
+
+
 
 
 

@@ -15,7 +15,7 @@ LARGE_NUMBER                   equ $5678   ; For randomness
 H_SECS_PER_FRAME               equ 4 ; hundredth seconds per frame, 1 frame/0.0x sec , for ex, 4 means 1/0.04 => 25fps
 * Game parameters
 PUSH_FORCE                  equ 500
-FRICTION_FORCE              equ 50
+FRICTION_FORCE              equ 100
 GRAVITY_FORCE               equ 100
 MASS_CHANGE                 equ 1
 FOOD_DROP_INTERVAL          equ 100
@@ -438,6 +438,7 @@ foodCollisionDone:
     ; Find a random x in between stage to drop
     move.l  LAST_UPDATE_TIME,LAST_FOOD_DROP_TIME
     move.l  #-FOOD_HEIGHT,d6
+    move.l  #0,(a4)
     move.l  #(STAGE_X_BEGIN-1)>>NUMBER_BITS_OF_FRACTIONAL_PART,d2
     move.l  #(STAGE_X_END-FOOD_WIDTH-1)>>NUMBER_BITS_OF_FRACTIONAL_PART,d3
     jsr     getRandomWordIntoD7
@@ -481,14 +482,13 @@ noCancelOutPositiveFrictionForce:
     ;Update velocity v=v0+a*t
 aroundFrictionForce:
     move.l #0,(a0)
-    ;mulu   ROUNDS,d4
+    move.l ROUNDS,d6
+    muls   d6,d4
     add.l  d4,d5
     move.l d5,(a1)
 
     ; Update position s=s0+v*t
-    ;asr.l  #8,d5
-    ;mulu   ROUNDS,d5
-    ;lsl.l  #8,d5
+    muls   d6,d5
     add.l  d5,d3
     move.l d3,(a2)
     
@@ -512,9 +512,12 @@ freeFall:
     move.l  (a5),d1
     move.l  d1,(a6)
     cmpi.l  #MAX_Y,d1
-    bgt     outOfScreen
+    bge     outOfScreen
     move.l  (a4),d0
-    addi.l  #GRAVITY_FORCE,d0
+    move.l  #GRAVITY_FORCE,d5
+    move.l  ROUNDS,d6
+    mulu    d5,d6
+    add.l   d6,d0
     add.l   d0,d1
     move.l  d1,(a5)
     bra freeFallDone

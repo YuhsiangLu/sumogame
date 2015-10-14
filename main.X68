@@ -355,7 +355,6 @@ noCollision:
 ************************************
 * Update the food    
 updateFood:
-    
     lea FOOD_VELOCITY_Y,a4
     lea FOOD_POS_Y,a5
     lea FOOD_PREVIOUS_POS_Y,a6

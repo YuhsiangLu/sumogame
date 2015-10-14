@@ -17,7 +17,7 @@ PUSH_FORCE                  equ 500
 FRICTION_FORCE              equ 50
 GRAVITY_FORCE               equ 100
 MASS_CHANGE                 equ 1
-FOOD_DROP_INTERVAL          equ 100
+FOOD_DROP_INTERVAL          equ 300
 * Background image
 BG_START_X                  equ 0
 BG_START_Y                  equ 0
@@ -58,6 +58,7 @@ REPAINT_TRAP_CODE           equ 94
 SET_RESOLUTION_TRAP_CODE    equ 33
 GET_TIME_TRAP_CODE          equ 8
 GET_CYCLE_TRAP_CODE         equ 31
+CLEAR_CYCLE_TRAP_CODE       equ 30
 *--------------------------------------------
 
 ************************************
@@ -164,6 +165,8 @@ getRandomWordIntoD7:
     move.l  d0,-(sp)
     move.l  RANDOMVAL,d7
     mulu    #LARGE_NUMBER,d7
+    move.l  #CLEAR_CYCLE_TRAP_CODE,d0
+    TRAP    #15
     move.l  #GET_CYCLE_TRAP_CODE,d0
     TRAP    #15
     mulu    d1,d7

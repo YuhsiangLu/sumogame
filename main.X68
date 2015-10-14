@@ -355,6 +355,12 @@ noCollision:
 ************************************
 * Update the food    
 updateFood:
+    
+    lea FOOD_VELOCITY_Y,a4
+    lea FOOD_POS_Y,a5
+    lea FOOD_PREVIOUS_POS_Y,a6
+    jsr freeFall
+
     move.l FOOD_POS_X,d5
     move.l FOOD_POS_Y,d6
 ; Check player1 collision
@@ -415,11 +421,6 @@ foodCollisionDone:
 noDropFood:
     move.l  d5,FOOD_POS_X
     move.l  d6,FOOD_POS_Y
-    
-    lea FOOD_VELOCITY_Y,a4
-    lea FOOD_POS_Y,a5
-    lea FOOD_PREVIOUS_POS_Y,a6
-    jsr freeFall
     rts
 
     
@@ -727,6 +728,7 @@ ALIGNMENT_FOOD             ds.l    0
 FOOD_IMG_DATA              INCBIN  "sushi.bmp"
 FOOD_IMG_DATA_END          ds.b    0
     END    START        ; last line of source
+
 
 
 

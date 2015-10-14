@@ -23,6 +23,9 @@ BG_IMG_HEIGHT               equ 536
 * Player image
 PLAYER_IMG_WIDTH            equ 64
 PLAYER_IMG_HEIGHT           equ 64
+* Food image
+FOOD_IMG_WIDTH              equ 32
+FOOD_IMG_HEIGHT             equ 32
 * Stage
 STAGE_WIDTH                 equ 744
 STAGE_HEIGHT                equ 100
@@ -89,8 +92,8 @@ gameLoop:
     
     ; Rendering
     jsr drawPlayers
-    ;jsr drawTimer
-    ;jsr drawScore
+    jsr drawFood
+    ;jsr drawMass
     jsr swapBuffers
     
     ; Check winning condition
@@ -411,6 +414,26 @@ p2Win:
     add    #36,sp
 p1Win:
     rts
+************************************    
+* Draw food image
+drawFood:
+    move.l FOOD_POS_Y,d7
+    cmpi.l #MAX_Y,d7
+    bge    noDrawFood
+    move.l #FOOD_IMG_DATA,-(sp)
+    move.l #FOOD_IMG_DATA_END,-(sp)
+    move.l FOOD_POS_X,-(sp)
+    move.l FOOD_POS_Y,-(sp)
+    move.l #0,-(sp)
+    move.l #0,-(sp)
+    move.l #FOOD_IMG_WIDTH,-(sp)
+    move.l #FOOD_IMG_HEIGHT,-(sp)
+    move.l #TRANSPARENT_COLOR_GREEN,-(sp)
+    jsr    drawImage
+    add    #36,sp
+noDrawFood:
+    rts
+
 
 ************************************    
 * Draw player image
@@ -534,11 +557,11 @@ PLAYER2_PREVIOUS_POS_Y     dc.l    PLAYER2_START_Y
 PLAYER2_VELOCITY_X         dc.l    0
 PLAYER2_VELOCITY_Y         dc.l    0
 PLAYER2_FORCE_X            dc.l    0
-OBJ_POS_X                  dc.l    0
-OBJ_POS_Y                  dc.l    0
-OBJ_PREVIOUS_POS_X         dc.l    0
-OBJ_PREVIOUS_POS_Y         dc.l    0
-OBJ_VELOCITY_Y             dc.l    0
+FOOD_POS_X                 dc.l    0
+FOOD_POS_Y                 dc.l    MAX_Y
+FOOD_PREVIOUS_POS_X        dc.l    0
+FOOD_PREVIOUS_POS_Y        dc.l    0
+FOOD_VELOCITY_Y            dc.l    0
 
 
 ALIGNMENT_BACKGROUND       ds.l    0
@@ -561,6 +584,10 @@ ALIGNMENT_P2WIN            ds.l    0
 P2WIN_IMG_DATA             INCBIN  "p2win.bmp"
 P2WIN_IMG_DATA_END         ds.b    0
 
+
+ALIGNMENT_FOOD             ds.l    0
+FOOD_IMG_DATA              INCBIN  "sushi.bmp"
+FOOD_IMG_DATA_END          ds.b    0
     END    START        ; last line of source
 
 

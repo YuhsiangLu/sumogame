@@ -16,7 +16,7 @@ H_SECS_PER_FRAME               equ 4 ; hundredth seconds per frame, 1 frame/0.0x
 * Game parameters
 PUSH_FORCE                  equ 500
 FRICTION_FORCE              equ 100
-GRAVITY_FORCE               equ 10
+GRAVITY_FORCE               equ 50
 MASS_CHANGE                 equ 1
 FOOD_DROP_INTERVAL          equ 100
 * Background image
@@ -331,8 +331,7 @@ doneInputPlayer2:
     move.l d0,d2
     add.l  #PLAYER_WIDTH,d2
     sub.l  d1,d2
-    mulu   #(2<<(NUMBER_BITS_OF_FRACTIONAL_PART-1)),d2 ; divid by 2
-    asr.l  #NUMBER_BITS_OF_FRACTIONAL_PART,d2
+    asr.l  #1,d2
     add.l  d2,d1
     sub.l  d2,d0
     move.l d0,PLAYER1_POS_X
@@ -482,14 +481,17 @@ noCancelOutPositiveFrictionForce:
     ;Update velocity v=v0+a*t
 aroundFrictionForce:
     move.l #0,(a0)
+    move.l d5,d7
     move.l ROUNDS,d6
     muls   d6,d4
     add.l  d4,d5
     move.l d5,(a1)
 
-    ; Update position s=s0+v*t
-    muls   d6,d5
-    add.l  d5,d3
+    ; Update position s=s0+0.5(v1+v2)*t
+    add.l  d5,d7
+    asr.l  #1,d7
+    muls   d6,d7
+    add.l  d7,d3
     move.l d3,(a2)
     
     ; Check if it fall off the stage
@@ -514,13 +516,18 @@ freeFall:
     cmpi.l  #MAX_Y,d1
     bge     outOfScreen
     move.l  (a4),d0
+    move.l  d0,d7
     move.l  #GRAVITY_FORCE,d5
     move.l  ROUNDS,d6
     mulu    d6,d5
     add.l   d5,d0
-    mulu    d6,d0
-    add.l   d0,d1
-    move.l  d1,(a5)
+    
+    ; Update position s=s0+0.5(v1+v2)*t
+    add.l  d0,d7
+    asr.l  #1,d7
+    mulu   d6,d7
+    add.l  d7,d1
+    move.l d1,(a5)
     bra freeFallDone
 outOfScreen:
     clr.l   d0

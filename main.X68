@@ -17,7 +17,7 @@ PUSH_FORCE                  equ 500
 FRICTION_FORCE              equ 50
 GRAVITY_FORCE               equ 100
 MASS_CHANGE                 equ 1
-FOOD_DROP_INTERVAL          equ 300
+FOOD_DROP_INTERVAL          equ 100
 * Background image
 BG_START_X                  equ 0
 BG_START_Y                  equ 0
@@ -43,7 +43,7 @@ PLAYER2_START_Y             equ PLAYER1_START_Y
 PLAYER_WIDTH                equ PLAYER_IMG_WIDTH<<NUMBER_BITS_OF_FRACTIONAL_PART
 PLAYER_HEIGHT               equ PLAYER_IMG_HEIGHT<<NUMBER_BITS_OF_FRACTIONAL_PART
 * Food
-FOOD_WIDTH                  equ PLAYER_IMG_WIDTH<<NUMBER_BITS_OF_FRACTIONAL_PART
+FOOD_WIDTH                  equ FOOD_IMG_WIDTH<<NUMBER_BITS_OF_FRACTIONAL_PART
 FOOD_HEIGHT                 equ FOOD_IMG_HEIGHT<<NUMBER_BITS_OF_FRACTIONAL_PART
 * Key codes
 KEY_LEFT_INPUT              equ $25
@@ -344,7 +344,7 @@ isCollided:
     blt     noCollision
     
     move.l  ARG_COL_Y1_OFFSET(sp),d1
-    add.l   ARG_COL_WIDTH1_OFFSET(sp),d1
+    add.l   ARG_COL_HEIGHT1_OFFSET(sp),d1
     cmp.l   ARG_COL_Y2_OFFSET(sp),d1
     blt     noCollision
 collision:
@@ -413,7 +413,7 @@ foodCollisionDone:
     move.l  d3,LAST_FOOD_DROP_TIME
     move.l  #-FOOD_HEIGHT,d6
     move.l  #STAGE_X_BEGIN>>NUMBER_BITS_OF_FRACTIONAL_PART,d2
-    move.l  #STAGE_X_END>>NUMBER_BITS_OF_FRACTIONAL_PART,d3
+    move.l  #(STAGE_X_END-FOOD_WIDTH/2)>>NUMBER_BITS_OF_FRACTIONAL_PART,d3
     jsr     getRandomWordIntoD7
     lsl.l   #NUMBER_BITS_OF_FRACTIONAL_PART,d7
     move.l  d7,d5

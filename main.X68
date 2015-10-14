@@ -176,11 +176,12 @@ nocarry:
     swap    d7
     ext.l   d7
     add.l   d2,d7
+    addi.l  #1,d7
+    move.l  d7,RANDOMVAL
     move.l  d0,(sp)+
     move.l  d1,(sp)+
     move.l  d2,(sp)+
     move.l  d3,(sp)+
-    move.l  d7,RANDOMVAL
     rts
 
 ************************************
@@ -727,6 +728,7 @@ ALIGNMENT_FOOD             ds.l    0
 FOOD_IMG_DATA              INCBIN  "sushi.bmp"
 FOOD_IMG_DATA_END          ds.b    0
     END    START        ; last line of source
+
 
 
 

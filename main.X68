@@ -17,7 +17,7 @@ PUSH_FORCE                  equ 500
 FRICTION_FORCE              equ 50
 GRAVITY_FORCE               equ 100
 MASS_CHANGE                 equ 1
-FOOD_DROP_INTERVAL          equ 300
+FOOD_DROP_INTERVAL          equ 100
 * Background image
 BG_START_X                  equ 0
 BG_START_Y                  equ 0
@@ -165,10 +165,15 @@ getRandomWordIntoD7:
     move.l  d0,-(sp)
     move.l  RANDOMVAL,d7
     mulu    #LARGE_NUMBER,d7
+    move.l  #GET_CYCLE_TRAP_CODE,d0
+    TRAP    #15
+    cmpi.l  #0,d1
+    bne     noClearCycle
     move.l  #CLEAR_CYCLE_TRAP_CODE,d0
     TRAP    #15
     move.l  #GET_CYCLE_TRAP_CODE,d0
     TRAP    #15
+noClearCycle:
     mulu    d1,d7
     bcs     nocarry
     add.l   #1,d7
@@ -416,8 +421,8 @@ foodCollisionDone:
     ; Find a random x in between stage to drop
     move.l  d3,LAST_FOOD_DROP_TIME
     move.l  #-FOOD_HEIGHT,d6
-    move.l  #STAGE_X_BEGIN>>NUMBER_BITS_OF_FRACTIONAL_PART,d2
-    move.l  #(STAGE_X_END-FOOD_WIDTH/2)>>NUMBER_BITS_OF_FRACTIONAL_PART,d3
+    move.l  #(STAGE_X_BEGIN-1)>>NUMBER_BITS_OF_FRACTIONAL_PART,d2
+    move.l  #(STAGE_X_END-FOOD_WIDTH-1)>>NUMBER_BITS_OF_FRACTIONAL_PART,d3
     jsr     getRandomWordIntoD7
     lsl.l   #NUMBER_BITS_OF_FRACTIONAL_PART,d7
     move.l  d7,d5

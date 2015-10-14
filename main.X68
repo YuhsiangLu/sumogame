@@ -93,8 +93,15 @@ gameLoop:
     ;jsr drawScore
     jsr swapBuffers
     
-    bra gameLoop
-
+    ; Check winning condition
+    jsr    checkWinner
+    cmpi.b #0,d7
+    beq    gameLoop
+    
+    ; Draw winning screen
+    jsr    drawWining
+    jsr    swapBuffers
+    
     move.b #9,d0
     trap   #15                                      ; halt simulator
     
@@ -104,7 +111,24 @@ swapBuffers
     move.b #REPAINT_TRAP_CODE,d0
     trap   #15
     rts
-    
+
+************************************
+* Check  the winne
+* OUTPUT: store result byte in d7
+checkWinner:
+    clr.b  d7
+    move.l PLAYER2_POS_Y,d6
+    cmpi.l #MAX_Y,d6
+    blt    p1NoWin
+    move.b #1,d7
+p1NoWin:    
+    move.l PLAYER1_POS_Y,d6
+    cmpi.l #MAX_Y,d6
+    blt    noWinner
+    move.b #2,d7
+noWinner:
+    rts
+
 ************************************
 * Get keyboard input and stores in d2,d3
 getInput:
@@ -354,6 +378,40 @@ roundDown:
     asr.l  #NUMBER_BITS_OF_FRACTIONAL_PART,d0
     rts
     
+    
+************************************
+* Draw wining screen
+* INPUT: d7 in byte, win condition 
+drawWining:
+    cmpi.b #1,d7
+    bne    p2Win
+    move.l #P1WIN_IMG_DATA,-(sp)
+    move.l #P1WIN_IMG_DATA_END,-(sp)
+    move.l #0,-(sp)
+    move.l #0,-(sp)
+    move.l #0,-(sp)
+    move.l #0,-(sp)
+    move.l #BG_IMG_WIDTH,-(sp)
+    move.l #BG_IMG_HEIGHT,-(sp)
+    move.l #0,-(sp)
+    jsr    drawImage
+    add    #36,sp
+    bra   p1Win
+p2Win:
+    move.l #P2WIN_IMG_DATA,-(sp)
+    move.l #P2WIN_IMG_DATA_END,-(sp)
+    move.l #0,-(sp)
+    move.l #0,-(sp)
+    move.l #0,-(sp)
+    move.l #0,-(sp)
+    move.l #BG_IMG_WIDTH,-(sp)
+    move.l #BG_IMG_HEIGHT,-(sp)
+    move.l #0,-(sp)
+    jsr    drawImage
+    add    #36,sp
+p1Win:
+    rts
+
 ************************************    
 * Draw player image
 drawPlayers:
@@ -459,20 +517,7 @@ drawScore
     rts
 
 * Variables
-ALIGNMENT_BACKGROUND       ds.l    1
-BACKGROUND_IMG_DATA        INCBIN  "stage.bmp"
-BACKGROUND_IMG_DATA_END    ds.b    1
-
-ALIGNMENT_PLAYER1          ds.l    1
-PLAYER1_IMG_DATA           INCBIN  "sumo1.bmp"
-PLAYER1_IMG_DATA_END       ds.b    1
-
-ALIGNMENT_PLAYER2          ds.l    1
-PLAYER2_IMG_DATA           INCBIN  "sumo2.bmp"
-PLAYER2_IMG_DATA_END       ds.b    1
-
 HAVE_HAD_NO_INPUT          dc.b    1
-WINNER                     dc.b    0
 
 ALIGNMENT_PLAYER_DATA      ds.l    1
 PLAYER1_POS_X              dc.l    PLAYER1_START_X
@@ -489,8 +534,35 @@ PLAYER2_PREVIOUS_POS_Y     dc.l    PLAYER2_START_Y
 PLAYER2_VELOCITY_X         dc.l    0
 PLAYER2_VELOCITY_Y         dc.l    0
 PLAYER2_FORCE_X            dc.l    0
+OBJ_POS_X                  dc.l    0
+OBJ_POS_Y                  dc.l    0
+OBJ_PREVIOUS_POS_X         dc.l    0
+OBJ_PREVIOUS_POS_Y         dc.l    0
+OBJ_VELOCITY_Y             dc.l    0
+
+
+ALIGNMENT_BACKGROUND       ds.l    0
+BACKGROUND_IMG_DATA        INCBIN  "stage.bmp"
+BACKGROUND_IMG_DATA_END    ds.b    0
+
+ALIGNMENT_PLAYER1          ds.l    0
+PLAYER1_IMG_DATA           INCBIN  "sumo1.bmp"
+PLAYER1_IMG_DATA_END       ds.b    0
+
+ALIGNMENT_PLAYER2          ds.l    0
+PLAYER2_IMG_DATA           INCBIN  "sumo2.bmp"
+PLAYER2_IMG_DATA_END       ds.b    0
+
+ALIGNMENT_P1WIN            ds.l    0
+P1WIN_IMG_DATA             INCBIN  "p1win.bmp"
+P1WIN_IMG_DATA_END         ds.b    0
+
+ALIGNMENT_P2WIN            ds.l    0
+P2WIN_IMG_DATA             INCBIN  "p2win.bmp"
+P2WIN_IMG_DATA_END         ds.b    0
 
     END    START        ; last line of source
+
 
 
 

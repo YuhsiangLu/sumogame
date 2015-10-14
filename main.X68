@@ -11,10 +11,13 @@ ALL_REG         REG D0-D7/A0-A6 ; Range of REG
 TRANSPARENT_COLOR_GREEN        equ $0000FF00
 NUMBER_BITS_OF_FRACTIONAL_PART equ 8
 ADD_FOR_ROUND                  equ 1<<(NUMBER_BITS_OF_FRACTIONAL_PART-1)  ; For negative fix point number truncate
+LARGE_NUMBER                   equ     $5678   ; For randomness
 * Game parameters
 PUSH_FORCE                  equ 500
 FRICTION_FORCE              equ 50
 GRAVITY_FORCE               equ 100
+MASS_CHANGE                 equ 1
+FOOD_DROP_INTERVAL          equ 300
 * Background image
 BG_START_X                  equ 0
 BG_START_Y                  equ 0
@@ -38,8 +41,10 @@ PLAYER1_START_Y             equ (BG_IMG_HEIGHT-STAGE_HEIGHT-PLAYER_IMG_HEIGHT)<<
 PLAYER2_START_X             equ STAGE_X_END-(10+PLAYER_IMG_WIDTH)<<NUMBER_BITS_OF_FRACTIONAL_PART
 PLAYER2_START_Y             equ PLAYER1_START_Y
 PLAYER_WIDTH                equ PLAYER_IMG_WIDTH<<NUMBER_BITS_OF_FRACTIONAL_PART
-PLAYER_HALF_WIDTH           equ (PLAYER_IMG_WIDTH/2)<<NUMBER_BITS_OF_FRACTIONAL_PART ; Quite often used in runtime
 PLAYER_HEIGHT               equ PLAYER_IMG_HEIGHT<<NUMBER_BITS_OF_FRACTIONAL_PART
+* Food
+FOOD_WIDTH                  equ PLAYER_IMG_WIDTH<<NUMBER_BITS_OF_FRACTIONAL_PART
+FOOD_HEIGHT                 equ FOOD_IMG_HEIGHT<<NUMBER_BITS_OF_FRACTIONAL_PART
 * Key codes
 KEY_LEFT_INPUT              equ $25
 KEY_RIGHT_INPUT             equ $27
@@ -51,6 +56,8 @@ DRAWING_MODE_TRAP_CODE      equ 92
 DOUBLE_BUFFERED_MODE        equ 17
 REPAINT_TRAP_CODE           equ 94
 SET_RESOLUTION_TRAP_CODE    equ 33
+GET_TIME_TRAP_CODE          equ 8
+GET_CYCLE_TRAP_CODE         equ 31
 *--------------------------------------------
 
 ************************************
@@ -83,12 +90,15 @@ START:
     jsr    drawPlayers
     jsr    swapBuffers
     
+    jsr     seedRandomNumber
+    
 gameLoop:
     ; Get input commands
     jsr getInput
     
     ; Update objects
-    jsr update
+    jsr updatePlayers
+    jsr updateFood
     
     ; Rendering
     jsr drawPlayers
@@ -133,6 +143,47 @@ noWinner:
     rts
 
 ************************************
+* Seed the randomness function
+seedRandomNumber:
+    clr.l   d6
+    move.b  #GET_TIME_TRAP_CODE,d0
+    TRAP    #15
+    move.l  d1,d6
+    mulu    #LARGE_NUMBER,d6
+    move.l  d6,RANDOMVAL
+    rts
+    
+************************************
+* Get random long into d7
+* INPUT d2,d3, min and max range
+* OUTPUT: d7
+getRandomWordIntoD7:
+    move.l  d3,-(sp)
+    move.l  d2,-(sp)
+    move.l  d1,-(sp)
+    move.l  d0,-(sp)
+    move.l  RANDOMVAL,d7
+    mulu    #LARGE_NUMBER,d7
+    move.l  #GET_CYCLE_TRAP_CODE,d0
+    TRAP    #15
+    mulu    d1,d7
+    bcs     nocarry
+    add.l   #1,d7
+nocarry:
+    andi.l  #$FFFF,d7 
+    sub.l   d2,d3
+    divu    d3,d7
+    swap    d7
+    ext.l   d7
+    add.l   d2,d7
+    move.l  d0,(sp)+
+    move.l  d1,(sp)+
+    move.l  d2,(sp)+
+    move.l  d3,(sp)+
+    move.l  d7,RANDOMVAL
+    rts
+
+************************************
 * Get keyboard input and stores in d2,d3
 getInput:
     clr.l  d2
@@ -166,9 +217,9 @@ aroundNoInput:
     rts
 
 ************************************
-* Update the objects in game according to the input from keyboard or the physic of the game world.
+* Update the players in game according to the input from keyboard or the physic of the game world.
 * The update routine assumes the states of input will be store in d2,d3
-update:
+updatePlayers:
     ; Input update
     cmpi.l #0,d2
     ble    doneInputPlayer1
@@ -300,6 +351,77 @@ collision:
     move.l  #1,d7    
 noCollision:
     rts    
+
+************************************
+* Update the food    
+updateFood:
+    move.l FOOD_POS_X,d5
+    move.l FOOD_POS_Y,d6
+; Check player1 collision
+    move.l PLAYER1_POS_X,-(sp)
+    move.l PLAYER1_POS_Y,-(sp)
+    move.l #PLAYER_WIDTH,-(sp)
+    move.l #PLAYER_HEIGHT,-(sp)
+    move.l d5,-(sp)
+    move.l d6,-(sp)
+    move.l #FOOD_WIDTH,-(sp)
+    move.l #FOOD_HEIGHT,-(sp)
+    jsr    isCollided
+    add.l  #32,sp
+    
+    cmpi.l #1,d7
+    bne    noPlayer1Collision
+    addi.l #MASS_CHANGE,PLAYER1_MASS
+    move.l #MAX_Y,d6
+    bra    foodCollisionDone
+noPlayer1Collision:
+    ; Check player2 collision
+    move.l PLAYER2_POS_X,-(sp)
+    move.l PLAYER2_POS_Y,-(sp)
+    move.l #PLAYER_WIDTH,-(sp)
+    move.l #PLAYER_HEIGHT,-(sp)
+    move.l d5,-(sp)
+    move.l d6,-(sp)
+    move.l #FOOD_WIDTH,-(sp)
+    move.l #FOOD_HEIGHT,-(sp)
+    jsr    isCollided
+    add.l  #32,sp
+    
+    cmpi.l #1,d7
+    bne    foodCollisionDone
+    addi.l #MASS_CHANGE,PLAYER2_MASS
+    move.l #MAX_Y,d6
+foodCollisionDone:
+
+    cmpi.l  #MAX_Y,d6
+    blt     noDropFood
+    clr.l   d1
+    move.b  #GET_TIME_TRAP_CODE,d0
+    TRAP    #15
+    move.l  LAST_FOOD_DROP_TIME,d2
+    move.l  d1,d3
+    sub.l   d2,d1
+    cmpi.l  #FOOD_DROP_INTERVAL,d1
+    blt     noDropFood
+    
+    ; Find a random x in between stage to drop
+    move.l  d3,LAST_FOOD_DROP_TIME
+    move.l  #-FOOD_HEIGHT,d6
+    move.l  #STAGE_X_BEGIN>>NUMBER_BITS_OF_FRACTIONAL_PART,d2
+    move.l  #STAGE_X_END>>NUMBER_BITS_OF_FRACTIONAL_PART,d3
+    jsr     getRandomWordIntoD7
+    lsl.l   #NUMBER_BITS_OF_FRACTIONAL_PART,d7
+    move.l  d7,d5
+noDropFood:
+    move.l  d5,FOOD_POS_X
+    move.l  d6,FOOD_POS_Y
+    
+    lea FOOD_VELOCITY_Y,a4
+    lea FOOD_POS_Y,a5
+    lea FOOD_PREVIOUS_POS_Y,a6
+    jsr freeFall
+    rts
+
     
 ************************************
 * Update player
@@ -343,7 +465,7 @@ aroundFrictionForce:
     ; Check if it fall off the stage
     move.l #STAGE_X_BEGIN,d0
     move.l #STAGE_X_END,d1
-    addi.l #PLAYER_HALF_WIDTH,d3
+    addi.l #(PLAYER_IMG_WIDTH/2)<<NUMBER_BITS_OF_FRACTIONAL_PART,d3
     cmp.l  d3,d0
     bgt    playerFreeFall
     cmp.l  d3,d1
@@ -365,8 +487,11 @@ freeFall:
     addi.l  #GRAVITY_FORCE,d0
     add.l   d0,d1
     move.l  d1,(a5)
-    move.l  d0,(a4)
+    bra freeFallDone
 outOfScreen:
+    clr.l   d0
+freeFallDone:
+    move.l  d0,(a4)
     rts   
 ************************************      
 * Drawing function
@@ -417,13 +542,22 @@ p1Win:
 ************************************    
 * Draw food image
 drawFood:
+    move.l FOOD_POS_X,d6
     move.l FOOD_POS_Y,d7
     cmpi.l #MAX_Y,d7
     bge    noDrawFood
+    
+    move.l d6,d0
+    jsr    roundDown
+    move.l d0,d6
+    move.l d7,d0
+    jsr    roundDown
+    move.l d0,d7
+    
     move.l #FOOD_IMG_DATA,-(sp)
     move.l #FOOD_IMG_DATA_END,-(sp)
-    move.l FOOD_POS_X,-(sp)
-    move.l FOOD_POS_Y,-(sp)
+    move.l d6,-(sp)
+    move.l d7,-(sp)
     move.l #0,-(sp)
     move.l #0,-(sp)
     move.l #FOOD_IMG_WIDTH,-(sp)
@@ -543,6 +677,9 @@ drawScore
 HAVE_HAD_NO_INPUT          dc.b    1
 
 ALIGNMENT_PLAYER_DATA      ds.l    1
+RANDOMVAL                  dc.l    0
+LAST_FOOD_DROP_TIME        dc.l    0
+PLAYER1_MASS               dc.l    1
 PLAYER1_POS_X              dc.l    PLAYER1_START_X
 PLAYER1_POS_Y              dc.l    PLAYER1_START_Y
 PLAYER1_PREVIOUS_POS_X     dc.l    PLAYER1_START_X+(1<<NUMBER_BITS_OF_FRACTIONAL_PART) ;A trick to make the logic draw the very first player image
@@ -550,6 +687,7 @@ PLAYER1_PREVIOUS_POS_Y     dc.l    PLAYER1_START_Y
 PLAYER1_VELOCITY_X         dc.l    0
 PLAYER1_VELOCITY_Y         dc.l    0
 PLAYER1_FORCE_X            dc.l    0
+PLAYER2_MASS               dc.l    1
 PLAYER2_POS_X              dc.l    PLAYER2_START_X
 PLAYER2_POS_Y              dc.l    PLAYER2_START_Y
 PLAYER2_PREVIOUS_POS_X     dc.l    PLAYER2_START_X+(1<<NUMBER_BITS_OF_FRACTIONAL_PART) ;A trick to make the logic draw the very first player image
@@ -557,7 +695,7 @@ PLAYER2_PREVIOUS_POS_Y     dc.l    PLAYER2_START_Y
 PLAYER2_VELOCITY_X         dc.l    0
 PLAYER2_VELOCITY_Y         dc.l    0
 PLAYER2_FORCE_X            dc.l    0
-FOOD_POS_X                 dc.l    0
+FOOD_POS_X                 dc.l    (STAGE_X_BEGIN+STAGE_X_END)/2<<NUMBER_BITS_OF_FRACTIONAL_PART
 FOOD_POS_Y                 dc.l    MAX_Y
 FOOD_PREVIOUS_POS_X        dc.l    0
 FOOD_PREVIOUS_POS_Y        dc.l    0

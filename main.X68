@@ -18,8 +18,8 @@ BAR_HEIGHT                     equ 5
 BAR_GAP                        equ 2
 BAR_Y_OFFSET                   equ 70
 * Game parameters
-PUSH_FORCE                  equ 500
-FRICTION_FORCE              equ 100
+PUSH_FORCE                  equ 300
+FRICTION_FORCE              equ 50
 GRAVITY_FORCE               equ 50
 MASS_CHANGE                 equ 1
 FOOD_DROP_INTERVAL          equ 100
@@ -444,7 +444,7 @@ foodCollisionDone:
     
     ; Find a random x in between stage to drop
     move.l  LAST_UPDATE_TIME,LAST_FOOD_DROP_TIME
-    move.l  #-FOOD_HEIGHT,d6
+    move.l  #0,d6
     move.l  #0,(a4)
     move.l  #(STAGE_X_BEGIN-1)>>NUMBER_BITS_OF_FRACTIONAL_PART,d2
     move.l  #(STAGE_X_END-FOOD_WIDTH-1)>>NUMBER_BITS_OF_FRACTIONAL_PART,d3
@@ -750,7 +750,7 @@ setPlayer2:
     move.l PLAYER2_MASS,d6
 setPlayer1:
     ; Turn off all
-    move.l #$00AAAAAA,d1
+    move.l #$00DDDDDD,d1
     move.l #PEN_COLOR_TRAP_CODE,d0
     trap   #15
     move.l #FILL_COLOR_TRAP_CODE,d0

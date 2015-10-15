@@ -422,7 +422,11 @@ updateFood:
     
     cmpi.l #1,d7
     bne    noPlayer1Collision
+    move.l PLAYER1_MASS,d1
+    cmpi.l #8,d1
+    bgt    skipGetFat1
     addi.l #MASS_CHANGE,PLAYER1_MASS
+skipGetFat1:
     move.l #MAX_Y,d6
     bra    foodCollisionDone
 noPlayer1Collision:
@@ -440,7 +444,11 @@ noPlayer1Collision:
     
     cmpi.l #1,d7
     bne    foodCollisionDone
+    move.l PLAYER2_MASS,d1
+    cmpi.l #8,d1
+    bgt    skipGetFat2
     addi.l #MASS_CHANGE,PLAYER2_MASS
+skipGetFat2:
     move.l #MAX_Y,d6
 foodCollisionDone:
     cmpi.l  #MAX_Y,d6

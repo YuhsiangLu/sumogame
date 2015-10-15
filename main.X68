@@ -229,27 +229,37 @@ getInput:
     TRAP   #15
     move.l d1,d4
     
+    cmpi.l #0,d4
+    beq    noInput1
+
+    move.b  HAVE_HAD_NO_INPUT_P1,d0
+    beq     aroundNoInput1
+    move.b  #0,HAVE_HAD_NO_INPUT_P1
+    
+    move.l d4,d2
+    
+    bra aroundNoInput1
+noInput1:
+    move.b #1,HAVE_HAD_NO_INPUT_P1
+aroundNoInput1:
     move.l #KEY_LEFT_INPUT<<8+KEY_RIGHT_INPUT,d1
     move.b #GET_USER_INPUT_TRAP_CODE,d0
     TRAP   #15
     move.l d1,d5
     
-    cmpi.l #0,d4
-    bne    haveInput
     cmpi.l #0,d5
-    beq    noInput
-haveInput:
-    move.b  HAVE_HAD_NO_INPUT,d0
-    beq     aroundNoInput
-    move.b  #0,HAVE_HAD_NO_INPUT
+    beq    noInput2
+
+    move.b  HAVE_HAD_NO_INPUT_P2,d0
+    beq     aroundNoInput2
+    move.b  #0,HAVE_HAD_NO_INPUT_P2
     
-    move.l d4,d2
     move.l d5,d3
     
-    bra aroundNoInput
-noInput:
-    move.b #1,HAVE_HAD_NO_INPUT
-aroundNoInput:
+    bra aroundNoInput2
+noInput2:
+    move.b #1,HAVE_HAD_NO_INPUT_P2
+aroundNoInput2:
     rts
 
 ************************************
@@ -919,7 +929,8 @@ drawBar6:
 
 
 * Variables
-HAVE_HAD_NO_INPUT          dc.b    1
+HAVE_HAD_NO_INPUT_P1          dc.b    1
+HAVE_HAD_NO_INPUT_P2          dc.b    1
 
 ALIGNMENT_PLAYER_DATA      ds.l    1
 RANDOMVAL                  dc.l    0

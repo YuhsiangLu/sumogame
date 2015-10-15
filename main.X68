@@ -337,11 +337,50 @@ doneInputPlayer2:
     
     cmp.l  #0,d7
     beq    noPlayerCollusion
-    ; Handle player collision
+    ; Handle player collision 
     clr.l  d0
+    ; v1' = (m1-m2)/(m1+m2)v1+2m2/(m1+m2)v2
     move.l PLAYER1_VELOCITY_X,d0
-    move.l PLAYER2_VELOCITY_X,PLAYER1_VELOCITY_X
-    move.l d0,PLAYER2_VELOCITY_X
+    move.l PLAYER2_VELOCITY_X,d1
+    move.l PLAYER1_MASS,d2
+    move.l PLAYER2_MASS,d3
+    move.l d2,d4  ; m1-m2
+    sub.l  d3,d4
+    move.l d3,d5  ; m1+m2
+    add.l  d2,d5
+    move.l d2,d6
+    add.l  d2,d6  ; 2m1
+    move.l d3,d7  ; 
+    add.l  d3,d7  ; 2m2
+    
+    ; v1
+    move.l d4,d2
+    divu   d5,d2
+    ext.l  d2
+    muls   d0,d2
+    
+    move.l d7,d3
+    divu   d5,d3
+    ext.l  d3
+    muls   d1,d3
+    
+    add.l  d2,d3
+    move.l d3,PLAYER1_VELOCITY_X
+    
+    ; v2
+    move.l d6,d3
+    divu   d5,d3
+    ext.l  d3
+    muls   d0,d3
+    
+    move.l d4,d2
+    divu   d5,d2
+    ext.l  d2
+    muls   d1,d2
+    
+    add.l  d3,d2
+    move.l d2,PLAYER2_VELOCITY_X
+    
     
     ; Find the center position in between two players
     move.l PLAYER1_POS_X,d0
@@ -480,7 +519,7 @@ noDropFood:
 * INPUT: Put the address of player's x force, x velocity, current x position and previous x position to a0, a1, a2, a3
 
 updatePlayer
-    ; Update acceleration f=ma, m=1, f=a
+    ; Update acceleration
     move.l (a2),d3
     move.l d3,(a3)
     move.l (a0),d4

@@ -22,6 +22,7 @@ PUSH_FORCE                  equ 300
 FRICTION_FORCE              equ 50
 GRAVITY_FORCE               equ 50
 MASS_CHANGE                 equ 1
+MASS_ADJUSTMENT             equ 4
 FOOD_DROP_INTERVAL          equ 100
 * Background image
 BG_START_X                  equ 0
@@ -343,7 +344,11 @@ doneInputPlayer2:
     move.l PLAYER1_VELOCITY_X,d0
     move.l PLAYER2_VELOCITY_X,d1
     move.l PLAYER1_MASS,d2
+    addi.l #MASS_ADJUSTMENT,d2  ; adjusment
+    lsl.l  #NUMBER_BITS_OF_FRACTIONAL_PART,d2
     move.l PLAYER2_MASS,d3
+    addi.l #MASS_ADJUSTMENT,d3  ; adjusment
+    lsl.l  #NUMBER_BITS_OF_FRACTIONAL_PART,d3
     move.l d2,d4  ; m1-m2
     sub.l  d3,d4
     move.l d3,d5  ; m1+m2
@@ -355,31 +360,39 @@ doneInputPlayer2:
     
     ; v1
     move.l d4,d2
-    divu   d5,d2
+    asl.l  #NUMBER_BITS_OF_FRACTIONAL_PART,d2
+    divs   d5,d2
     ext.l  d2
     muls   d0,d2
+    asr.l  #NUMBER_BITS_OF_FRACTIONAL_PART,d2
     
     move.l d7,d3
-    divu   d5,d3
+    asl.l  #NUMBER_BITS_OF_FRACTIONAL_PART,d3
+    divs   d5,d3
     ext.l  d3
     muls   d1,d3
+    asr.l  #NUMBER_BITS_OF_FRACTIONAL_PART,d3
     
     add.l  d2,d3
     move.l d3,PLAYER1_VELOCITY_X
     
     ; v2
     move.l d6,d3
-    divu   d5,d3
+    asl.l  #NUMBER_BITS_OF_FRACTIONAL_PART,d3
+    divs   d5,d3
     ext.l  d3
     muls   d0,d3
+    asr.l  #NUMBER_BITS_OF_FRACTIONAL_PART,d3
     
     move.l d4,d2
-    divu   d5,d2
+    asl.l  #NUMBER_BITS_OF_FRACTIONAL_PART,d2
+    divs   d5,d2
     ext.l  d2
     muls   d1,d2
+    asr.l  #NUMBER_BITS_OF_FRACTIONAL_PART,d2
     
-    add.l  d3,d2
-    move.l d2,PLAYER2_VELOCITY_X
+    sub.l  d2,d3
+    move.l d3,PLAYER2_VELOCITY_X
     
     
     ; Find the center position in between two players

@@ -13,6 +13,10 @@ NUMBER_BITS_OF_FRACTIONAL_PART equ 8
 ADD_FOR_ROUND                  equ 1<<(NUMBER_BITS_OF_FRACTIONAL_PART-1)  ; For negative fix point number truncate
 LARGE_NUMBER                   equ $5678   ; For randomness
 H_SECS_PER_FRAME               equ 4 ; hundredth seconds per frame, 1 frame/0.0x sec , for ex, 4 means 1/0.04 => 25fps
+BAR_WIDTH                      equ 15
+BAR_HEIGHT                     equ 5
+BAR_GAP                        equ 2
+BAR_Y_OFFSET                   equ 70
 * Game parameters
 PUSH_FORCE                  equ 500
 FRICTION_FORCE              equ 100
@@ -43,6 +47,8 @@ PLAYER2_START_X             equ STAGE_X_END-(10+PLAYER_IMG_WIDTH)<<NUMBER_BITS_O
 PLAYER2_START_Y             equ PLAYER1_START_Y
 PLAYER_WIDTH                equ PLAYER_IMG_WIDTH<<NUMBER_BITS_OF_FRACTIONAL_PART
 PLAYER_HEIGHT               equ PLAYER_IMG_HEIGHT<<NUMBER_BITS_OF_FRACTIONAL_PART
+PLAYER1_LED_OFFSET          equ 83
+PLAYER2_LED_OFFSET          equ 1070
 * Food
 FOOD_WIDTH                  equ FOOD_IMG_WIDTH<<NUMBER_BITS_OF_FRACTIONAL_PART
 FOOD_HEIGHT                 equ FOOD_IMG_HEIGHT<<NUMBER_BITS_OF_FRACTIONAL_PART
@@ -60,6 +66,8 @@ SET_RESOLUTION_TRAP_CODE    equ 33
 GET_TIME_TRAP_CODE          equ 8
 GET_CYCLE_TRAP_CODE         equ 31
 CLEAR_CYCLE_TRAP_CODE       equ 30
+DRAW_RECTANGLE_TRAP_CODE    equ 87
+FILL_COLOR_TRAP_CODE        equ 81
 *--------------------------------------------
 
 ************************************
@@ -123,7 +131,7 @@ gameLoop:
     ; Rendering
     jsr drawPlayers
     jsr drawFood
-    ;jsr drawMass
+    jsr drawMass
     jsr swapBuffers
     
     ; Check winning condition
@@ -728,12 +736,187 @@ invalIcon:
     rts
 
 ************************************
-drawTimer
-    rts
+* Draw mass on the led board
+drawMass:
+    move.l #1,d5 ; Counter
+    lea    LedTable,a0
+    lea    LedFuncTable,a1
+    ; Set the color
+    move.l #PLAYER1_LED_OFFSET,d7
+    move.l PLAYER1_MASS,d6
+    bra    setPlayer1
+setPlayer2:
+    move.l #PLAYER2_LED_OFFSET,d7
+    move.l PLAYER2_MASS,d6
+setPlayer1:
+    ; Turn off all
+    move.l #$00AAAAAA,d1
+    move.l #PEN_COLOR_TRAP_CODE,d0
+    trap   #15
+    move.l #FILL_COLOR_TRAP_CODE,d0
+    trap   #15  
+    jsr drawBar0
+    jsr drawBar1
+    jsr drawBar2
+    jsr drawBar3
+    jsr drawBar4
+    jsr drawBar5
+    jsr drawBar6
     
-************************************
-drawScore
+    ; Turn on
+    move.l #0,d1
+    move.l #PEN_COLOR_TRAP_CODE,d0
+    trap   #15
+    move.l #FILL_COLOR_TRAP_CODE,d0
+    trap   #15
+    
+    lsl.l  #2,d6
+    move.l (a0,d6),d6
+    move.l #6,d4
+drawNexBar:
+    move.l d6,d3
+    and.l  #1,d3
+    beq    noInvoke
+    move.l #6,d2
+    sub.l  d4,d2
+    lsl.l  #2,d2
+    move.l (a1,d2),a2
+    jsr    (a2)
+noInvoke:
+    lsr.l  #1,d6
+    dbra d4,drawNexBar
+    dbra d5,setPlayer2
     rts
+
+************************************
+* This functions take offset on d7
+drawBar0:
+    movem.l d0-d6,-(sp)
+    move.l  d7,d1
+    addi.w  #BAR_GAP,d1
+    addi.w  #BAR_HEIGHT,d1
+    move.l  #BAR_Y_OFFSET,d2
+    move.l  d1,d3
+    addi.w  #BAR_WIDTH,d3
+    move.l  d2,d4
+    addi.w  #BAR_HEIGHT,d4
+    move.b  #DRAW_RECTANGLE_TRAP_CODE,d0
+    trap    #15
+    movem.l (sp)+,d0-d6
+    rts
+drawBar1:
+    movem.l d0-d6,-(sp)
+    move.l  d7,d1
+    addi.w  #BAR_GAP,d1
+    addi.w  #BAR_GAP,d1
+    addi.w  #BAR_HEIGHT,d1
+    addi.w  #BAR_WIDTH,d1
+    move.l  #BAR_Y_OFFSET,d2
+    addi.w  #BAR_GAP,d2
+    addi.w  #BAR_HEIGHT,d2
+    move.l  d1,d3
+    addi.w  #BAR_HEIGHT,d3
+    move.l  d2,d4
+    addi.w  #BAR_WIDTH,d4
+    move.b  #DRAW_RECTANGLE_TRAP_CODE,d0
+    trap    #15
+    movem.l (sp)+,d0-d6
+    rts
+drawBar2:
+    movem.l d0-d6,-(sp)
+    move.l  d7,d1
+    addi.w  #BAR_GAP,d1
+    addi.w  #BAR_GAP,d1
+    addi.w  #BAR_HEIGHT,d1
+    addi.w  #BAR_WIDTH,d1
+    move.l  #BAR_Y_OFFSET,d2
+    addi.w  #BAR_GAP,d2
+    addi.w  #BAR_HEIGHT,d2
+    addi.w  #BAR_GAP,d2
+    addi.w  #BAR_GAP,d2
+    addi.w  #BAR_HEIGHT,d2
+    addi.w  #BAR_WIDTH,d2
+    move.l  d1,d3
+    addi.w  #BAR_HEIGHT,d3
+    move.l  d2,d4
+    addi.w  #BAR_WIDTH,d4
+    move.b  #DRAW_RECTANGLE_TRAP_CODE,d0
+    trap    #15
+    movem.l (sp)+,d0-d6
+    rts
+drawBar3:
+    movem.l d0-d6,-(sp)
+    move.l  d7,d1
+    addi.w  #BAR_GAP,d1
+    addi.w  #BAR_HEIGHT,d1
+    move.l  #BAR_Y_OFFSET,d2
+    addi.w  #BAR_GAP,d2
+    addi.w  #BAR_GAP,d2
+    addi.w  #BAR_WIDTH,d2
+    addi.w  #BAR_HEIGHT,d2
+    addi.w  #BAR_GAP,d2
+    addi.w  #BAR_GAP,d2
+    addi.w  #BAR_WIDTH,d2
+    addi.w  #BAR_HEIGHT,d2
+    move.l  d1,d3
+    addi.w  #BAR_WIDTH,d3
+    move.l  d2,d4
+    addi.w  #BAR_HEIGHT,d4
+    move.b  #DRAW_RECTANGLE_TRAP_CODE,d0
+    trap    #15
+    movem.l (sp)+,d0-d6
+    rts
+drawBar4:
+    movem.l d0-d6,-(sp)
+    move.l  d7,d1
+    addi.w  #BAR_GAP,d1
+    addi.w  #BAR_HEIGHT,d1
+    move.l  #BAR_Y_OFFSET,d2
+    addi.w  #BAR_GAP,d2
+    addi.w  #BAR_GAP,d2
+    addi.w  #BAR_WIDTH,d2
+    addi.w  #BAR_HEIGHT,d2
+    move.l  d1,d3
+    addi.w  #BAR_WIDTH,d3
+    move.l  d2,d4
+    addi.w  #BAR_HEIGHT,d4
+    move.b  #DRAW_RECTANGLE_TRAP_CODE,d0
+    trap    #15
+    movem.l (sp)+,d0-d6
+    rts
+drawBar5:
+    movem.l d0-d6,-(sp)
+    move.l  d7,d1
+    move.l  #BAR_Y_OFFSET,d2
+    addi.w  #BAR_GAP,d2
+    addi.w  #BAR_HEIGHT,d2
+    move.l  d1,d3
+    addi.w  #BAR_HEIGHT,d3
+    move.l  d2,d4
+    addi.w  #BAR_WIDTH,d4
+    move.b  #DRAW_RECTANGLE_TRAP_CODE,d0
+    trap    #15
+    movem.l (sp)+,d0-d6
+    rts
+drawBar6:
+    movem.l d0-d6,-(sp)
+    move.l  d7,d1
+    move.l  #BAR_Y_OFFSET,d2
+    addi.w  #BAR_GAP,d2
+    addi.w  #BAR_HEIGHT,d2
+    addi.w  #BAR_GAP,d2
+    addi.w  #BAR_GAP,d2
+    addi.w  #BAR_HEIGHT,d2
+    addi.w  #BAR_WIDTH,d2
+    move.l  d1,d3
+    addi.w  #BAR_HEIGHT,d3
+    move.l  d2,d4
+    addi.w  #BAR_WIDTH,d4
+    move.b  #DRAW_RECTANGLE_TRAP_CODE,d0
+    trap    #15
+    movem.l (sp)+,d0-d6
+    rts
+
 
 * Variables
 HAVE_HAD_NO_INPUT          dc.b    1
@@ -764,6 +947,11 @@ FOOD_POS_Y                 dc.l    MAX_Y
 FOOD_PREVIOUS_POS_X        dc.l    (STAGE_X_BEGIN+STAGE_X_END)/2<<NUMBER_BITS_OF_FRACTIONAL_PART
 FOOD_PREVIOUS_POS_Y        dc.l    MAX_Y
 FOOD_VELOCITY_Y            dc.l    0
+
+LedTable
+                           dc.l    $6f,$6,$5b,$1f,$36,$3d,$7d,$7,$7f,$3f
+LedFuncTable
+                           dc.l    drawBar0,drawBar1,drawBar2,drawBar3,drawBar4,drawBar5,drawBar6
 
 
 ALIGNMENT_BACKGROUND       ds.l    0
